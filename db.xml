@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright (c) 2026 Andrii Pasichnyk. All rights reserved. See LICENSE. -->
+<schema xmlns="http://www.concrete5.org/doctrine-xml/0.5"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.concrete5.org/doctrine-xml/0.5 http://concrete5.github.io/doctrine-xml/doctrine-xml-0.5.xsd">
+
+  <!-- Бани IP. Одна активна/остання запис на IP. -->
+  <table name="SecurityGuardBlocks">
+    <field name="id" type="integer" size="10"><unsigned/><autoincrement/><key/></field>
+    <field name="ip" type="string" size="45"><notnull/></field>
+    <field name="reason" type="string" size="64"><notnull/><default value=""/></field>
+    <field name="category" type="string" size="32"><notnull/><default value=""/></field>
+    <field name="blockedUntil" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <!-- 0 = тимчасовий; 1 = назавжди (blockedUntil ігнорується) -->
+    <field name="permanent" type="boolean"><notnull/><default value="0"/></field>
+    <field name="escalationLevel" type="smallint"><unsigned/><notnull/><default value="0"/></field>
+    <field name="attempts" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <field name="manual" type="boolean"><notnull/><default value="0"/></field>
+    <field name="lastUrl" type="string" size="500"/>
+    <field name="lastUserAgent" type="string" size="255"/>
+    <field name="country" type="string" size="2"/>
+    <field name="createdAt" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <field name="updatedAt" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <index name="ip"><unique/><col>ip</col></index>
+    <index name="blockedUntil"><col>blockedUntil</col></index>
+  </table>
+
+  <!-- Журнал подій WAF (атаки, бани, honeypot, невдалі входи). -->
+  <table name="SecurityGuardEvents">
+    <field name="id" type="bigint"><unsigned/><autoincrement/><key/></field>
+    <field name="ip" type="string" size="45"><notnull/></field>
+    <field name="rule" type="string" size="64"><notnull/><default value=""/></field>
+    <field name="category" type="string" size="32"><notnull/><default value=""/></field>
+    <!-- logged | blocked | denied | banned -->
+    <field name="action" type="string" size="16"><notnull/><default value="logged"/></field>
+    <field name="method" type="string" size="10"><notnull/><default value="GET"/></field>
+    <field name="url" type="string" size="500"/>
+    <field name="userAgent" type="string" size="255"/>
+    <field name="referrer" type="string" size="255"/>
+    <field name="country" type="string" size="2"/>
+    <field name="createdAt" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <index name="createdAt"><col>createdAt</col></index>
+    <index name="ip"><col>ip</col></index>
+    <index name="category"><col>category</col><col>createdAt</col></index>
+  </table>
+
+  <!-- Білий список: IP, префікс із крапкою в кінці або CIDR. -->
+  <table name="SecurityGuardWhitelist">
+    <field name="id" type="integer" size="10"><unsigned/><autoincrement/><key/></field>
+    <field name="ipRange" type="string" size="64"><notnull/></field>
+    <field name="description" type="string" size="255"/>
+    <!-- 1 = додано автоматично після входу адміністратора -->
+    <field name="auto" type="boolean"><notnull/><default value="0"/></field>
+    <!-- 0 = безстроково -->
+    <field name="expiresAt" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <field name="createdAt" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <index name="ipRange"><unique/><col>ipRange</col></index>
+  </table>
+
+  <!-- Поведінкові бали (TTL). -->
+  <table name="SecurityGuardScores">
+    <field name="ip" type="string" size="45"><key/></field>
+    <field name="score" type="integer" size="10"><notnull/><default value="0"/></field>
+    <field name="events" type="text"/>
+    <field name="firstSeen" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <field name="updatedAt" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <index name="score"><col>score</col></index>
+    <index name="updatedAt"><col>updatedAt</col></index>
+  </table>
+
+  <!-- Влучання в honeypot. -->
+  <table name="SecurityGuardHoneypotHits">
+    <field name="id" type="bigint"><unsigned/><autoincrement/><key/></field>
+    <field name="ip" type="string" size="45"><notnull/></field>
+    <field name="url" type="string" size="500"><notnull/></field>
+    <field name="userAgent" type="string" size="255"/>
+    <field name="createdAt" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <index name="ip"><col>ip</col></index>
+    <index name="createdAt"><col>createdAt</col></index>
+  </table>
+
+  <!-- Кеш перевірки пошукових ботів (rDNS + прямий DNS). -->
+  <table name="SecurityGuardBotCache">
+    <field name="ip" type="string" size="45"><key/></field>
+    <field name="hostname" type="string" size="255"/>
+    <field name="isBot" type="boolean"><notnull/><default value="0"/></field>
+    <field name="botName" type="string" size="64"/>
+    <field name="verifiedAt" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+  </table>
+
+  <!-- Сповіщення (DDoS, підбір пароля, вхід адміна з нової IP тощо). -->
+  <table name="SecurityGuardAlerts">
+    <field name="id" type="bigint"><unsigned/><autoincrement/><key/></field>
+    <field name="type" type="string" size="32"><notnull/></field>
+    <!-- info | warning | critical -->
+    <field name="severity" type="string" size="16"><notnull/><default value="info"/></field>
+    <field name="message" type="string" size="500"><notnull/></field>
+    <field name="value" type="integer" size="10"/>
+    <field name="baseline" type="integer" size="10"/>
+    <field name="ip" type="string" size="45"/>
+    <field name="url" type="string" size="500"/>
+    <field name="isRead" type="boolean"><notnull/><default value="0"/></field>
+    <field name="createdAt" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <index name="createdAt"><col>createdAt</col></index>
+  </table>
+
+  <!-- Агрегати по днях з логів хостингу. Ідемпотентно: рядок дня перезаписується. -->
+  <table name="SecurityGuardDailyStats">
+    <!-- YYYY-MM-DD у часовому поясі сайту -->
+    <field name="day" type="string" size="10"><key/></field>
+    <field name="totalRequests" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <field name="uniqueIps" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <field name="attackRequests" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <field name="attackIps" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <field name="blocked403" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <field name="loginFailed" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <field name="overload508" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <field name="errors404" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <field name="errors5xx" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <field name="bytes" type="bigint"><unsigned/><notnull/><default value="0"/></field>
+    <field name="botRequests" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <!-- JSON: categories, rules, topIps [{ip,count,attacks,bot}], topAttackIps [{ip,count,bot}], topUrls, top404,
+         hours[24], hoursAttacks[24], statuses, bots, attackIpList (≤1000), ipSketch/attackIpSketch (HLL),
+         excluded, partialLines, botAttackLike, report {attackRequests, attackIps, attackIpList, loginFailed, categories} -->
+    <field name="breakdown" type="text"/>
+    <field name="updatedAt" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+  </table>
+
+  <!-- Позиції читання файлів логів (щоб не рахувати двічі при повторному запуску й ротації). -->
+  <table name="SecurityGuardLogCursors">
+    <field name="path" type="string" size="255"><key/></field>
+    <field name="fingerprint" type="string" size="64"><notnull/><default value=""/></field>
+    <field name="size" type="bigint"><unsigned/><notnull/><default value="0"/></field>
+    <field name="position" type="bigint"><unsigned/><notnull/><default value="0"/></field>
+    <field name="completed" type="boolean"><notnull/><default value="0"/></field>
+    <field name="updatedAt" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+  </table>
+</schema>

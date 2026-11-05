@@ -1,0 +1,67 @@
+Security Guard for Concrete CMS
+Copyright (c) 2026 Andrii Pasichnyk. All rights reserved.
+
+Авторське право (c) 2026 Andrii Pasichnyk. Усі права захищені.
+
+==============================================================================
+УКРАЇНСЬКОЮ
+==============================================================================
+
+1. Цей програмний код (пакет Security Guard для Concrete CMS, його
+   вихідний код, шаблони, стилі, скрипти та документація в цьому
+   репозиторії, далі — «Код») створено Andrii Pasichnyk (далі — «Автор»).
+   Особисті немайнові та всі майнові авторські права на Код належать Автору.
+
+2. Код опубліковано лише для ознайомлення. Публічний доступ до Коду не є
+   ліцензією. Жодна особа не отримує права встановлювати, використовувати,
+   відтворювати, змінювати, поширювати, публікувати, продавати чи
+   ліцензувати Код або його частини інакше як на підставі окремого
+   письмового дозволу Автора.
+
+3. Заборона поширюється на будь-які способи зміни чи використання Коду, у
+   тому числі за допомогою інструментів штучного інтелекту (AI-асистентів,
+   генераторів коду, автоматичних агентів), а також на використання Коду
+   для навчання моделей штучного інтелекту.
+
+4. Файли Коду містять інформацію про авторство. Її видалення чи зміна є
+   окремим порушенням прав Автора.
+
+5. Ядро Concrete CMS та сторонні бібліотеки цією ліцензією не охоплюються —
+   на них діють їхні власні ліцензії.
+
+6. КОД НАДАЄТЬСЯ «ЯК Є», БЕЗ БУДЬ-ЯКИХ ГАРАНТІЙ. АВТОР НЕ НЕСЕ
+   ВІДПОВІДАЛЬНОСТІ ЗА БУДЬ-ЯКІ ЗБИТКИ, ЗАПОДІЯНІ ВИКОРИСТАННЯМ КОДУ.
+
+Щодо отримання дозволу звертайтеся до Автора: apasichnik9@gmail.com
+
+==============================================================================
+ENGLISH
+==============================================================================
+
+1. This source code (the Security Guard package for Concrete CMS, its
+   source, templates, styles, scripts and documentation in this
+   repository, the "Code") was created by Andrii Pasichnyk (the "Author").
+   All moral and economic rights in the Code belong to the Author.
+
+2. The Code is published for viewing only. Public access to the Code is
+   not a licence. No person or organisation is granted any right to
+   install, use, copy, modify, distribute, publish, sell or sublicense the
+   Code or any part of it except with the Author's separate written
+   permission.
+
+3. This prohibition covers every way of modifying or using the Code,
+   including with artificial-intelligence tools (AI assistants, code
+   generators, automated agents), and using the Code to train AI models.
+
+4. The Code's files contain authorship information. Removing or altering
+   it is a separate infringement of the Author's rights.
+
+5. The Concrete CMS core and third-party libraries are not covered by this
+   licence; they remain under their own licences.
+
+6. THE CODE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. THE AUTHOR
+   SHALL NOT BE LIABLE FOR ANY DAMAGES ARISING FROM USE OF THE CODE.
+
+In case of discrepancy, the Ukrainian text prevails.
+
+To request permission, contact the Author: apasichnik9@gmail.com

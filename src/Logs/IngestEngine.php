@@ -1,0 +1,348 @@
+<?php
+// Copyright (c) 2026 Andrii Pasichnyk. All rights reserved. See LICENSE.
+
+declare(strict_types=1);
+
+namespace PasichDev\SecurityGuard\Logs;
+
+use DateTimeImmutable;
+use DateTimeZone;
+use Throwable;
+
+/**
+ * Інкрементальний розбір логів. Чистий PHP: сховища передаються інтерфейсами.
+ *
+ * Прохід A (дешевий): для кожного файлу за курсором читаються лише нові рядки,
+ * з них — тільки час; збирається множина «торкнутих» днів. Дні спершу
+ * додаються до черги (PendingDaysStore), лише потім зсуваються курсори — тож
+ * обрив між ними не губить днів.
+ *
+ * Прохід B: кожен день із черги перераховується ПОВНІСТЮ з усіх рядків усіх
+ * джерел, які його містять, і рядок дня перезаписується. Тому повторний
+ * запуск і ротація (рядки переїхали з живого логу в архів) не дають подвійного
+ * рахунку: на момент перерахунку рядок або в одному файлі, або в двох файлах
+ * одного потоку з перекриттям часу — тоді враховується максимум входжень
+ * однакового рядка серед цих файлів (а не сума).
+ */
+final class IngestEngine
+{
+    /** Скільки днів перераховувати за один прохід по файлах (обмежує пам'ять). */
+    public const GROUP_DAYS = 7;
+    private const CHECK_EVERY = 2000;
+
+    /** @var DateTimeZone */
+    private $tz;
+    /** @var callable(): AttackClassifierInterface */
+    private $classifierFactory;
+    /** @var IpMatcher */
+    private $exclude;
+    /** @var CursorStoreInterface */
+    private $cursors;
+    /** @var PendingDaysStoreInterface */
+    private $pending;
+    /** @var DayWriterInterface */
+    private $writer;
+    /** @var DayAggregator лише для перетворення часу в день */
+    private $clock;
+    /** @var CrawlerVerifier */
+    private $crawlers;
+
+    public function __construct(
+        DateTimeZone $tz,
+        callable $classifierFactory,
+        IpMatcher $exclude,
+        CursorStoreInterface $cursors,
+        PendingDaysStoreInterface $pending,
+        DayWriterInterface $writer,
+        ?CrawlerVerifier $crawlers = null
+    ) {
+        $this->crawlers = $crawlers ?? new CrawlerVerifier();
+        $this->tz = $tz;
+        $this->classifierFactory = $classifierFactory;
+        $this->exclude = $exclude;
+        $this->cursors = $cursors;
+        $this->pending = $pending;
+        $this->writer = $writer;
+        $this->clock = new DayAggregator($tz, new ReportClassifier());
+    }
+
+    /**
+     * @param array<string, array{size:int, mtime:int, stream:string}> $sources SourceLocator::discover()
+     * @param array{rebuild?:bool, days?:int, timeBudget?:int, now?:int, deadlineAt?:float} $options
+     * @return array{files:int, lines:int, days:string[], finished:bool, errors:string[], pending:int, deduplicated:int, malformed:int}
+     */
+    public function run(array $sources, array $options = []): array
+    {
+        $started = microtime(true);
+        $budget = max(0, (int) ($options['timeBudget'] ?? 0));
+        $deadline = $budget > 0 ? $started + $budget : INF;
+        if (isset($options['deadlineAt'])) {
+            $deadline = (float) $options['deadlineAt'];
+        }
+        $now = (int) ($options['now'] ?? time());
+        $rebuild = !empty($options['rebuild']);
+        $minDay = '';
+        if (!empty($options['days']) && (int) $options['days'] > 0) {
+            $minDay = (new DateTimeImmutable('@' . $now))->setTimezone($this->tz)
+                ->modify('-' . ((int) $options['days'] - 1) . ' days')->format('Y-m-d');
+        }
+
+        $result = ['files' => 0, 'lines' => 0, 'days' => [], 'finished' => false, 'errors' => [], 'pending' => 0, 'deduplicated' => 0, 'malformed' => 0];
+        $stored = $this->cursors->load();
+        $pending = $rebuild ? [] : array_fill_keys($this->pending->get(), true);
+
+        // ---- Прохід A
+        $states = [];
+        $newDays = [];
+        $cut = false;
+        foreach ($sources as $path => $meta) {
+            ++$result['files'];
+            $size = (int) $meta['size'];
+            $cur = $stored[$path] ?? null;
+            [$hash, $min, $max] = self::decodeFingerprint($cur['fingerprint'] ?? '');
+            if ($cut) {
+                // Час вичерпано: файл не чіпаємо, курсор лишаємо як був.
+                if ($cur !== null) {
+                    $states[$path] = $cur + ['stream' => $meta['stream']];
+                }
+                continue;
+            }
+            $first = LogReader::firstLine($path);
+            $hashNow = $first === '' ? '' : sha1($first);
+            if ($hashNow === '') {
+                $states[$path] = self::cursorRow($path, '', 0, 0, $size, 0, true, $now) + ['stream' => $meta['stream']];
+                continue;
+            }
+            $reset = $rebuild || $cur === null || $hash !== $hashNow || $size < (int) $cur['size'];
+            if (!$reset && $size === (int) $cur['size'] && !empty($cur['completed'])) {
+                $states[$path] = self::cursorRow($path, $hash, $min, $max, $size, (int) $cur['position'], true, $now) + ['stream' => $meta['stream']];
+                continue;
+            }
+            $start = $reset ? 0 : (int) $cur['position'];
+            if ($reset) {
+                $min = 0;
+                $max = 0;
+            }
+            $completed = true;
+            $position = $start;
+            try {
+                $reader = new LogReader($path);
+                if ($start > 0 && !$reader->seek($start)) {
+                    $reader->seek(0);
+                    $min = 0;
+                    $max = 0;
+                }
+                $n = 0;
+                while (($line = $reader->next()) !== null) {
+                    $ts = LogParser::timestamp($line);
+                    if ($ts === null) {
+                        ++$result['malformed'];
+                    } else {
+                        ++$result['lines'];
+                        $newDays[$this->clock->dayOf($ts)] = true;
+                        if ($min === 0 || $ts < $min) {
+                            $min = $ts;
+                        }
+                        if ($ts > $max) {
+                            $max = $ts;
+                        }
+                    }
+                    if (++$n % self::CHECK_EVERY === 0 && microtime(true) > $deadline) {
+                        $completed = false;
+                        $cut = true;
+                        break;
+                    }
+                }
+                $position = $reader->tell();
+                $reader->close();
+            } catch (Throwable $e) {
+                $result['errors'][] = $path . ': ' . $e->getMessage();
+                $completed = false;
+            }
+            $states[$path] = self::cursorRow($path, $hashNow, $min, $max, $size, $position, $completed, $now) + ['stream' => $meta['stream']];
+        }
+
+        foreach (array_keys($newDays) as $day) {
+            if ($minDay === '' || strcmp((string) $day, $minDay) >= 0) {
+                $pending[(string) $day] = true;
+            }
+        }
+        $this->pending->set(self::sortedDays($pending));
+        $this->cursors->save(array_map(static function (array $r): array {
+            unset($r['stream']);
+
+            return $r;
+        }, $states));
+
+        // ---- Прохід B
+        $queue = self::sortedDays($pending);
+        $ranges = [];
+        foreach ($states as $path => $st) {
+            [, $min, $max] = self::decodeFingerprint($st['fingerprint']);
+            if ($min === 0 && $max === 0 && $st['fingerprint'] === '') {
+                continue; // порожній файл
+            }
+            $ranges[$path] = [
+                'min' => $min > 0 ? $min : 0,
+                'max' => !empty($st['completed']) && $max > 0 ? $max : PHP_INT_MAX,
+                'stream' => $st['stream'],
+            ];
+        }
+
+        // Якщо прохід A обірвано, частина файлів не має відомого діапазону —
+        // перерахунок відкладаємо до запуску, який дочитає всі файли.
+        while ($queue && !$cut) {
+            if (microtime(true) > $deadline) {
+                break;
+            }
+            $group = array_splice($queue, 0, self::GROUP_DAYS);
+            try {
+                $rows = $this->computeDays($group, $ranges, $result);
+            } catch (Throwable $e) {
+                $result['errors'][] = $e->getMessage();
+                break;
+            }
+            foreach ($group as $day) {
+                if (isset($rows[$day])) {
+                    $this->writer->saveDay($day, $rows[$day]);
+                    $result['days'][] = $day;
+                }
+                unset($pending[$day]);
+            }
+            $this->pending->set(self::sortedDays($pending));
+        }
+
+        $result['pending'] = count($pending);
+        $result['finished'] = !$cut && !$pending && !$result['errors'];
+
+        return $result;
+    }
+
+    /**
+     * Повний перерахунок набору днів з усіх файлів, що їх покривають (без запису).
+     * @param string[] $days
+     * @param array<string, array{min:int, max:int, stream:string}> $ranges
+     * @return array<string, array>
+     */
+    public function computeDays(array $days, array $ranges, array &$stats = []): array
+    {
+        if (!$days) {
+            return [];
+        }
+        sort($days);
+        $from = $this->localMidnight($days[0]);
+        $to = $this->localMidnight($days[count($days) - 1], 1);
+        $agg = new DayAggregator($this->tz, ($this->classifierFactory)(), $this->exclude, $days, $this->crawlers);
+
+        $files = [];
+        foreach ($ranges as $path => $r) {
+            if ($r['max'] >= $from && $r['min'] < $to) {
+                $files[$path] = $r;
+            }
+        }
+        // Вікна перекриття з іншими файлами того самого потоку.
+        $windows = [];
+        foreach ($files as $a => $ra) {
+            foreach ($files as $b => $rb) {
+                if ($a === $b || $ra['stream'] !== $rb['stream']) {
+                    continue;
+                }
+                $lo = max($ra['min'], $rb['min'], $from);
+                $hi = min($ra['max'], $rb['max'], $to);
+                if ($lo <= $hi) {
+                    $windows[$a][] = [$lo, $hi];
+                }
+            }
+        }
+
+        $seen = [];
+        $fi = 0;
+        foreach ($files as $path => $r) {
+            ++$fi;
+            $win = $windows[$path] ?? [];
+            $reader = new LogReader($path);
+            while (($line = $reader->next()) !== null) {
+                $ts = LogParser::timestamp($line);
+                if ($ts === null || $ts < $from - 86400 || $ts > $to + 86400 || !$agg->wants($ts)) {
+                    continue;
+                }
+                if ($win && self::inWindows($ts, $win)) {
+                    $key = $r['stream'] . "\0" . md5(rtrim($line, "\r\n"), true);
+                    $counts = $seen[$key] ?? [];
+                    $c = ($counts[$fi] ?? 0) + 1;
+                    $counts[$fi] = $c;
+                    $seen[$key] = $counts;
+                    unset($counts[$fi]);
+                    if ($counts && $c <= max($counts)) {
+                        // Такий самий рядок уже врахований з іншого файлу цього потоку.
+                        $stats['deduplicated'] = ($stats['deduplicated'] ?? 0) + 1;
+                        continue;
+                    }
+                }
+                $parsed = LogParser::parse($line);
+                if ($parsed !== null) {
+                    $agg->add($parsed);
+                }
+            }
+            $reader->close();
+        }
+
+        return $agg->finish();
+    }
+
+    public function localMidnight(string $day, int $plusDays = 0): int
+    {
+        $dt = new DateTimeImmutable($day . ' 00:00:00', $this->tz);
+        if ($plusDays) {
+            $dt = $dt->modify('+' . $plusDays . ' day');
+        }
+
+        return $dt->getTimestamp();
+    }
+
+    /** Відбиток: sha1 першого рядка + діапазон часу рядків файлу (вміщується в 64 символи). */
+    public static function encodeFingerprint(string $hash, int $min, int $max): string
+    {
+        return $hash === '' ? '' : $hash . ':' . $min . ':' . $max;
+    }
+
+    /** @return array{0:string, 1:int, 2:int} */
+    public static function decodeFingerprint(string $fp): array
+    {
+        $p = explode(':', $fp);
+
+        return [$p[0], isset($p[1]) ? (int) $p[1] : 0, isset($p[2]) ? (int) $p[2] : 0];
+    }
+
+    private static function cursorRow(string $path, string $hash, int $min, int $max, int $size, int $position, bool $completed, int $now): array
+    {
+        return [
+            'path' => $path,
+            'fingerprint' => self::encodeFingerprint($hash, $min, $max),
+            'size' => $size,
+            'position' => $position,
+            'completed' => $completed,
+            'updatedAt' => $now,
+        ];
+    }
+
+    private static function inWindows(int $ts, array $windows): bool
+    {
+        foreach ($windows as [$lo, $hi]) {
+            if ($ts >= $lo && $ts <= $hi) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @param array<string, true> $set */
+    private static function sortedDays(array $set): array
+    {
+        $d = array_map('strval', array_keys($set));
+        sort($d);
+
+        return $d;
+    }
+}

@@ -1,0 +1,4 @@
+/vendor/
+*.zip
+/tests/fixtures/logs/
+.DS_Store
