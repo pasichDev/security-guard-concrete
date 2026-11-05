@@ -134,7 +134,7 @@ $make = static function () use ($tz): array {
 $discover = static function () use ($home): array {
     return (new SourceLocator($home, 'example.org'))->discover();
 };
-$check = static function (MemoryDays $d, array $exp, string $label, array $extraTotal = []): void {
+$check = static function (MemoryDays $d, array $exp, string $label, array $extraTotal = [], bool $overlapInFiles = true): void {
     foreach ($exp as $day => $e) {
         $row = $d->rows[$day] ?? null;
         if ($row === null) {
@@ -143,7 +143,9 @@ $check = static function (MemoryDays $d, array $exp, string $label, array $extra
         }
         T::eq($e['total'] + ($extraTotal[$day] ?? 0), $row['totalRequests'], "$label: $day total");
         T::eq($e['fakeAttacks'], $row['attackRequests'], "$label: $day attacks");
-        T::eq($e['reportAttacks'], $row['breakdown']['report']['attackRequests'], "$label: $day report attacks");
+        // «Як у звіті» — усі рядки всіх файлів; поки перекриття живого логу з архівом є у файлах, воно рахується двічі.
+        T::eq($overlapInFiles ? $e['reportAttacksRaw'] : $e['reportAttacks'], $row['breakdown']['report']['attackRequests'], "$label: $day report attacks (all files)");
+        T::eq(($overlapInFiles ? $e['totalRaw'] : $e['total']) + ($extraTotal[$day] ?? 0), $row['breakdown']['report']['totalRequests'], "$label: $day report total (all files)");
         T::eq($e['blocked403'], $row['blocked403'], "$label: $day 403");
         T::eq($e['overload508'], $row['overload508'], "$label: $day 508");
         T::eq($e['loginFailed'], $row['loginFailed'], "$label: $day login failed");
@@ -201,7 +203,7 @@ $r = $engine->run($discover(), ['now' => $now]);
 T::ok($r['finished'], 'after rotation finished');
 T::eq(count($moved) + 10, $r['lines'], 'rotation: only appended archive lines + new live lines read');
 T::ok(in_array('2026-10-04', $r['days'], true) && in_array('2026-10-05', $r['days'], true), 'rotation recomputed touched days');
-$check($days, $expected['days'], 'after rotation', ['2026-10-04' => 1]);
+$check($days, $expected['days'], 'after rotation', ['2026-10-04' => 1], false);
 T::eq(10, $days->rows['2026-10-05']['totalRequests'], 'new day after rotation');
 
 // 5. Перебудова з нуля дає те саме.

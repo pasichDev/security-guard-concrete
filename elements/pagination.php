@@ -9,8 +9,8 @@ use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard
 if (!isset($pagination) || !is_array($pagination)) {
     return;
 }
-$pages = (int) $pagination['pages'];
-$page = (int) $pagination['page'];
+$pages = max(1, (int) ($pagination['pages'] ?? 1));
+$page = max(1, min($pages, (int) ($pagination['page'] ?? 1)));
 $query = (array) ($pagination['query'] ?? []);
 $baseUrl = isset($baseUrl) ? (string) $baseUrl : '';
 $link = static function (int $p) use ($query, $baseUrl) {
@@ -23,6 +23,9 @@ $link = static function (int $p) use ($query, $baseUrl) {
 };
 $from = ($page - 1) * (int) $pagination['perPage'] + 1;
 $to = min((int) $pagination['total'], $page * (int) $pagination['perPage']);
+if ($from > $to) {
+    $from = $to;
+}
 ?>
 <div class="sg-pagination d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
     <div class="sg-muted small">

@@ -51,7 +51,7 @@ class Scores extends BaseController
         }
         $ip = $this->postString('ip', 45);
         if (!filter_var($ip, FILTER_VALIDATE_IP)) {
-            $this->flash('error', t('"%s" is not a valid IP address.', $ip));
+            $this->notify('error', t('"%s" is not a valid IP address.', $ip));
 
             return $this->back();
         }
@@ -61,7 +61,7 @@ class Scores extends BaseController
             return true;
         }, false, t('Behaviour scores'));
         if ($ok) {
-            $this->flash('success', t('The score of %s is reset.', $ip));
+            $this->notify('success', t('The score of %s is reset.', $ip));
         }
 
         return $this->back(['page' => (string) (int) $this->request->request->get('page', 1)]);

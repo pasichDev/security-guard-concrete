@@ -29,7 +29,18 @@ T::eq(['level' => 3, 'duration' => 2592000], Escalation::next($steps, $prev, $no
 $prev = ['escalationLevel' => 3, 'blockedUntil' => $now - Escalation::DECAY - 1, 'permanent' => 0];
 T::eq(['level' => 0, 'duration' => 3600], Escalation::next($steps, $prev, $now), 'давній бан (> 30 днів) — знову з 1 год');
 $prev = ['escalationLevel' => 0, 'blockedUntil' => $now + 500, 'permanent' => 0];
-T::eq(['level' => 1, 'duration' => 86400], Escalation::next($steps, $prev, $now), 'порушення під час чинного бану — ескалація');
+T::eq(['level' => 0, 'duration' => 3600], Escalation::next($steps, $prev, $now), 'порушення під час ЧИННОГО бану — без ескалації');
+$prev = ['escalationLevel' => 2, 'blockedUntil' => $now + 500, 'permanent' => 0];
+T::eq(['level' => 2, 'duration' => 604800], Escalation::next($steps, $prev, $now), 'чинний бан рівня 2 — рівень не росте');
+// Паралельні запити: 20 «повторних» порушень за секунду не дають 30 днів.
+$row = null;
+for ($i = 0; $i < 20; $i++) {
+    $next = Escalation::next($steps, $row, $now);
+    [$until] = Escalation::until($next['duration'], $row, $now);
+    $row = ['escalationLevel' => $next['level'], 'blockedUntil' => $until, 'permanent' => 0];
+}
+T::eq(0, $row['escalationLevel'], '20 порушень під час одного бану — рівень 0 (1 год)');
+T::eq($now + 3600, $row['blockedUntil'], 'бан не подовжився');
 T::eq([$now + 3600, false], Escalation::until(3600, null, $now), 'until без попереднього');
 T::eq([$now + 864000, false], Escalation::until(3600, ['blockedUntil' => $now + 864000, 'permanent' => 0], $now), 'не скорочуємо довший чинний бан');
 T::eq([0, true], Escalation::until(0, null, $now), '0 — назавжди');
@@ -71,6 +82,26 @@ $clock += 1000;
 $removed = $store->purgeExpired();
 T::ok($removed >= 3, 'purgeExpired видаляє прострочені (' . $removed . ')');
 T::eq([], glob($dir . '/counters/*.cnt'), 'після прибирання порожньо');
+// Відновлюване прибирання з лімітом і стелею кількості файлів.
+$pdir = sg_temp_dir('purge');
+$pclock = 1000;
+$pstore = new FileCounterStore($pdir . '/c', str_repeat('d', 64), static function () use (&$pclock): int {
+    return $pclock;
+});
+for ($i = 0; $i < 30; $i++) {
+    $pstore->set('k' . $i, 1, $i < 20 ? 10 : 100000);
+}
+$pclock = 2000;
+$removed = $pstore->purgeExpired(5, 5.0);
+T::ok($removed <= 5, 'прибирання зупиняється на ліміті переглянутих файлів');
+T::ok(is_file($pdir . '/c/.purge-cursor'), 'курсор збережено');
+$total = $removed;
+for ($i = 0; $i < 10; $i++) {
+    $total += $pstore->purgeExpired(5, 5.0);
+}
+T::eq(20, $total, 'наступні проходи продовжують з курсора й прибирають усі 20 прострочених');
+T::eq(10, $pstore->count(), 'живі лічильники лишилися');
+
 // Конкурентні increment у кількох процесах (flock).
 if (function_exists('pcntl_fork')) {
     $real = new FileCounterStore($dir . '/race', str_repeat('b', 64));
@@ -114,6 +145,14 @@ T::eq([], glob($sdir . '/*.tmp'), 'тимчасових файлів не лиш
 // Пошкоджений файл → за замовчуванням, без винятку.
 file_put_contents($sdir . '/state.php', "<?php return 'broken';");
 T::eq(Settings::MODE_MONITOR, (new FileStateCache(null, $sdir))->load()['settings']['mode'], 'пошкоджений стан → monitor');
+// Дебаунс перебудови: свіжий стан — лише позначка «застарів».
+$cache2 = new FileStateCache(null, $sdir);
+$cache2->write(['settings' => Settings::DEFAULTS]);
+$cache2->rebuildDebounced();
+T::ok(is_file($sdir . '/state.dirty'), 'дебаунс: позначка state.dirty');
+$cache2->write(['settings' => Settings::DEFAULTS]);
+T::ok(!is_file($sdir . '/state.dirty'), 'перебудова прибирає позначку');
+
 // Сіль.
 $salt1 = StateDir::salt($sdir);
 $salt2 = StateDir::salt($sdir);

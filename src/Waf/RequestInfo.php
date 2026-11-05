@@ -30,8 +30,14 @@ final class RequestInfo
     public $body = '';
     /** Значення cookie («name=value» по рядку) без cookie сесії/входу Concrete. @var string */
     public $cookies = '';
-    /** POST форми входу з непорожніми логіном і паролем. @var bool */
+    /** POST форми входу (або OAuth2 password grant) з непорожніми логіном і паролем. @var bool */
     public $isLoginAttempt = false;
+    /** Логін із форми входу (нижній регістр) — щоб відрізнити адміністратора від підбору чужих логінів. @var string */
+    public $loginUser = '';
+    /** Значення Sec-Fetch-Site / Sec-Fetch-Dest ('' — браузер їх не надіслав). @var string */
+    public $fetchSite = '';
+    /** @var string */
+    public $fetchDest = '';
     /** @var int */
     public $now = 0;
 
@@ -49,14 +55,28 @@ final class RequestInfo
         return $pos === false ? '' : substr($this->uri, $pos + 1);
     }
 
+    /**
+     * Запит, який міг ініціювати чужий сайт у браузері відвідувача
+     * (<img src>, <script src>, посилання, автосабміт форми): за ним НІКОЛИ
+     * не баним — лише відмовляємо, інакше будь-хто міг би забанити відвідувача.
+     */
+    public function isCrossSiteTriggered(): bool
+    {
+        if (in_array($this->fetchSite, ['cross-site', 'same-site'], true)) {
+            return true;
+        }
+
+        return in_array($this->fetchDest, ['image', 'script', 'style', 'font', 'audio', 'video', 'track', 'object', 'embed', 'iframe', 'frame', 'worker', 'manifest', 'report', 'xslt'], true);
+    }
+
     /** Контекст для журналу подій / бану. */
     public function context(): array
     {
         return [
             'method' => $this->method,
-            'url' => $this->uri,
+            'url' => Text::cleanUrl($this->uri),
             'userAgent' => $this->userAgent,
-            'referrer' => $this->referer,
+            'referrer' => Text::cleanUrl($this->referer),
         ];
     }
 }

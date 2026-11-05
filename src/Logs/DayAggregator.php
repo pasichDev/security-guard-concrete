@@ -19,6 +19,8 @@ final class DayAggregator
 {
     public const TOP_N = 20;
     public const ATTACK_IP_LIST_MAX = 1000;
+    /** Понад стільки різних IP за день точні мапи IP більше не ростуть — далі лише HLL. */
+    public const IP_MAP_MAX = 50000;
     private const URL_MAP_MAX = 5000;
     private const BREAKDOWN_MAX_BYTES = 60000;
 
@@ -119,7 +121,7 @@ final class DayAggregator
         }
 
         ++$d['total'];
-        $d['ips'][$ip] = ($d['ips'][$ip] ?? 0) + 1;
+        self::countIp($d, 'ips', 'ipSk', $ip);
         ++$d['hours'][$hour];
         $d['bytes'] += $r['bytes'];
         if ($r['partial']) {
@@ -181,7 +183,7 @@ final class DayAggregator
             $c = $hw['category'] ?? 'unclassified';
             $rule = $hw['rule'] ?? 'NONE';
             ++$d['hwTotal'];
-            $d['hwIps'][$ip] = ($d['hwIps'][$ip] ?? 0) + 1;
+            self::countIp($d, 'hwIps', 'hwSk', $ip);
             $d['hwCategories'][$c] = ($d['hwCategories'][$c] ?? 0) + 1;
             $d['hwRules'][$rule] = ($d['hwRules'][$rule] ?? 0) + 1;
             if ($uri !== '') {
@@ -192,6 +194,11 @@ final class DayAggregator
                 }
             }
         }
+        if ($hit !== null && ($hit['strength'] ?? 'strong') === 'weak') {
+            // Слабкий збіг (звичайний текст, схожий на payload) — не атака.
+            ++$d['weakAttackLike'];
+            $hit = null;
+        }
         if ($hit !== null && $verifiedBot !== null) {
             // Краулер ходить старими (Joomla) адресами, які схожі на проби, — рахуємо окремо.
             ++$d['botAttackLike'];
@@ -200,24 +207,78 @@ final class DayAggregator
         if ($hit !== null) {
             ++$d['attacks'];
             ++$d['hoursAttacks'][$hour];
-            $d['attackIps'][$ip] = ($d['attackIps'][$ip] ?? 0) + 1;
+            self::countIp($d, 'attackIps', 'attackSk', $ip);
             $c = $hit['category'];
             $d['categories'][$c] = ($d['categories'][$c] ?? 0) + 1;
             $rule = $hit['rule'];
             $d['rules'][$rule] = ($d['rules'][$rule] ?? 0) + 1;
         }
 
-        $rep = $this->report->classify($method, $uri, $ua);
+        $this->addReport($d, $r);
+        unset($d);
+    }
+
+    /**
+     * Рядок, який основна статистика відкинула як дубль іншого файлу того самого
+     * потоку (напр. той самий запит в Apache- і nginx-архіві), — враховується лише
+     * в цифрах «як у звіті»: ручний звіт рахував усі рядки всіх файлів.
+     */
+    public function addReportOnly(array $r): void
+    {
+        $day = $this->dayHour($r['ts'])[0];
+        if ($this->onlyDays !== null && !isset($this->onlyDays[$day])) {
+            return;
+        }
+        if (!isset($this->days[$day])) {
+            $this->days[$day] = self::emptyDay();
+        }
+        $d = &$this->days[$day];
+        if (!$this->exclude->matches($r['ip'])) {
+            $this->addReport($d, $r);
+        }
+        unset($d);
+    }
+
+    private function addReport(array &$d, array $r): void
+    {
+        $uri = $r['rawUri'] ?? $r['uri'];
+        ++$d['rTotal'];
+        if ($r['status'] === 403) {
+            ++$d['r403'];
+        } elseif ($r['status'] === 508) {
+            ++$d['r508'];
+        }
+        $rep = $this->report->classify($r['method'], $uri, $r['ua']);
         if ($rep !== null) {
             ++$d['rAttacks'];
-            $d['rAttackIps'][$ip] = true;
+            if (count($d['rAttackIps']) < self::IP_MAP_MAX) {
+                $d['rAttackIps'][$r['ip']] = true;
+            }
             $c = $rep['category'];
             $d['rCategories'][$c] = ($d['rCategories'][$c] ?? 0) + 1;
         }
-        if (ReportClassifier::isLoginFailure($method, $uri, $status)) {
+        if (ReportClassifier::isLoginFailure($r['method'], $uri, $r['status'])) {
             ++$d['rLoginFailed'];
         }
-        unset($d);
+    }
+
+    /** Лічильник IP з обмеженням пам'яті: нові IP понад IP_MAP_MAX ідуть лише в HLL. */
+    private static function countIp(array &$d, string $map, string $sketch, string $ip): void
+    {
+        if (isset($d[$map][$ip])) {
+            ++$d[$map][$ip];
+
+            return;
+        }
+        if ($d[$sketch] === null) {
+            $d[$sketch] = new CardinalitySketch();
+        }
+        $d[$sketch]->add($ip);
+        if (count($d[$map]) < self::IP_MAP_MAX) {
+            $d[$map][$ip] = 1;
+        } else {
+            $d[$map . 'Overflow'] = true;
+        }
     }
 
     /** @return string[] */
@@ -250,22 +311,23 @@ final class DayAggregator
             'blocked403' => 0, 'loginFailed' => 0, 'overload508' => 0, 'errors404' => 0, 'errors5xx' => 0,
             'bytes' => 0, 'botRequests' => 0, 'bots' => [], 'urls' => [], 'u404' => [],
             'hours' => array_fill(0, 24, 0), 'hoursAttacks' => array_fill(0, 24, 0), 'statuses' => [],
-            'excluded' => 0, 'partial' => 0, 'ipBot' => [], 'verifiedBotRequests' => 0, 'botAttackLike' => 0,
+            'excluded' => 0, 'partial' => 0, 'ipBot' => [], 'verifiedBotRequests' => 0, 'botAttackLike' => 0, 'weakAttackLike' => 0,
             'rAttacks' => 0, 'rAttackIps' => [], 'rCategories' => [], 'rLoginFailed' => 0,
             'hwTotal' => 0, 'hwIps' => [], 'hwCategories' => [], 'hwRules' => [], 'hwUrls' => [],
+            'rTotal' => 0, 'r403' => 0, 'r508' => 0,
+            'ipSk' => null, 'attackSk' => null, 'hwSk' => null,
+            'ipsOverflow' => false, 'attackIpsOverflow' => false, 'hwIpsOverflow' => false,
         ];
     }
 
     private static function buildRow(array $d): array
     {
-        $ipSketch = new CardinalitySketch();
-        foreach ($d['ips'] as $ip => $_) {
-            $ipSketch->add((string) $ip);
-        }
-        $attackSketch = new CardinalitySketch();
-        foreach ($d['attackIps'] as $ip => $_) {
-            $attackSketch->add((string) $ip);
-        }
+        $ipSketch = $d['ipSk'] ?? new CardinalitySketch();
+        $attackSketch = $d['attackSk'] ?? new CardinalitySketch();
+        $hwSketch = $d['hwSk'] ?? new CardinalitySketch();
+        $uniqueIps = $d['ipsOverflow'] ? max(count($d['ips']), $ipSketch->count()) : count($d['ips']);
+        $attackIpCount = $d['attackIpsOverflow'] ? max(count($d['attackIps']), $attackSketch->count()) : count($d['attackIps']);
+        $hwIpCount = $d['hwIpsOverflow'] ? max(count($d['hwIps']), $hwSketch->count()) : count($d['hwIps']);
 
         $topIps = [];
         $ips = $d['ips'];
@@ -282,7 +344,7 @@ final class DayAggregator
 
         $attackIpList = array_map('strval', array_keys($d['attackIps']));
         sort($attackIpList);
-        $truncated = count($attackIpList) > self::ATTACK_IP_LIST_MAX;
+        $truncated = count($attackIpList) > self::ATTACK_IP_LIST_MAX || $d['attackIpsOverflow'];
         if ($truncated) {
             $attackIpList = array_map('strval', array_keys(array_slice($aips, 0, self::ATTACK_IP_LIST_MAX, true)));
         }
@@ -310,7 +372,7 @@ final class DayAggregator
             $hwTop[] = ['ip' => (string) $ip, 'count' => $n, 'bot' => $d['ipBot'][$ip] ?? null];
         }
         $hwList = array_map('strval', array_keys($hwIps));
-        $hwTruncated = count($hwList) > self::ATTACK_IP_LIST_MAX;
+        $hwTruncated = count($hwList) > self::ATTACK_IP_LIST_MAX || $d['hwIpsOverflow'];
         $hwList = array_slice($hwList, 0, self::ATTACK_IP_LIST_MAX);
         sort($hwList);
         $hwCats = $d['hwCategories'];
@@ -332,6 +394,7 @@ final class DayAggregator
             'bots' => array_slice($bots, 0, self::TOP_N, true),
             'verifiedBotRequests' => $d['verifiedBotRequests'],
             'botAttackLike' => $d['botAttackLike'],
+            'weakAttackLike' => $d['weakAttackLike'],
             'attackIpList' => $attackIpList,
             'attackIpListTruncated' => $truncated,
             'ipSketch' => $ipSketch->serialize(),
@@ -345,8 +408,13 @@ final class DayAggregator
                 'topUrls' => self::topList($d['hwUrls'], 'url'),
                 'ipList' => $hwList,
                 'ipListTruncated' => $hwTruncated,
+                'ipSketch' => $hwSketch->serialize(),
             ],
+            'ipMapsCapped' => $d['ipsOverflow'] || $d['attackIpsOverflow'] || $d['hwIpsOverflow'],
             'report' => [
+                'totalRequests' => $d['rTotal'],
+                'blocked403' => $d['r403'],
+                'overload508' => $d['r508'],
                 'attackRequests' => $d['rAttacks'],
                 'attackIps' => count($d['rAttackIps']),
                 'attackIpList' => $rIpList,
@@ -359,9 +427,9 @@ final class DayAggregator
 
         return [
             'totalRequests' => $d['total'],
-            'uniqueIps' => count($d['ips']),
+            'uniqueIps' => $uniqueIps,
             'attackRequests' => $d['attacks'],
-            'attackIps' => count($d['attackIps']),
+            'attackIps' => $attackIpCount,
             'blocked403' => $d['blocked403'],
             'loginFailed' => $d['loginFailed'],
             'overload508' => $d['overload508'],
@@ -370,7 +438,7 @@ final class DayAggregator
             'bytes' => $d['bytes'],
             'botRequests' => $d['botRequests'],
             'hostWafBlocked' => $d['hwTotal'],
-            'hostWafIps' => count($d['hwIps']),
+            'hostWafIps' => $hwIpCount,
             'breakdown' => $breakdown,
         ];
     }

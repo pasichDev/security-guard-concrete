@@ -17,7 +17,14 @@ final class Signatures
     public const XXE = '#<!doctype[^>]*\[|<!entity\b#i';
 
     /** Схема + внутрішній/службовий хост (метадані хмар, loopback, приватні мережі) або небезпечна схема. */
-    public const SSRF = '~(?:(?:https?|ftp|ldap|tftp)://(?:[^/@\s&"\']*@)?\[?(?:169\.254\.\d{1,3}\.\d{1,3}|metadata\.google\.internal|metadata\.azure\.com|100\.100\.100\.200|localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|0\.0\.0\.0|0x7f[0-9a-f.]*|2130706433|017700000001|::1\]?|::ffff:127\.|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(?=[:/?\]#&\s"\']|$)|\b(?:gopher|dict|file|jar|netdoc)://)~i';
+    /** Схема + внутрішній/службовий хост (метадані хмар, loopback, приватні мережі) або небезпечна схема. */
+    public const SSRF_TARGET = '(?:(?:https?|ftp|ldap|tftp)://(?:[^/@\s&"\']{0,64}@)?\[?(?:169\.254\.\d{1,3}\.\d{1,3}|metadata\.google\.internal|metadata\.azure\.com|100\.100\.100\.200|localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|0\.0\.0\.0|0x7f[0-9a-f.]*|2130706433|017700000001|::1\]?|::ffff:127\.|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(?=[:/?\]#&\s"\']|$)|\b(?:gopher|dict|file|jar|netdoc)://)';
+
+    /** Будь-де в тексті (слабка ознака в тілі). */
+    public const SSRF = '~' . self::SSRF_TARGET . '~i';
+
+    /** Значення параметра цілком — адреса на внутрішній хост (сильна ознака в query/cookie). */
+    public const SSRF_PARAM = '~(?:^|[=&\n])\s{0,3}' . self::SSRF_TARGET . '~i';
 
     /** Перевіряє рядок cookie («name=value» по рядку) лише цими сигнатурами. */
     public static function classifyCookies(string $cookies): ?array
@@ -32,7 +39,7 @@ final class Signatures
         if (preg_match(self::XXE, $value)) {
             return ['rule' => 'XXE', 'category' => 'injection'];
         }
-        if (preg_match(self::SSRF, $value)) {
+        if (preg_match(self::SSRF_PARAM, $value)) {
             return ['rule' => 'SSRF_TARGET', 'category' => 'injection'];
         }
 

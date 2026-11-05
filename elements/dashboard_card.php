@@ -11,6 +11,8 @@ defined('C5_EXECUTE') or die('Access Denied.');
 
 use Concrete\Core\Page\Page;
 use Concrete\Core\Permission\Checker;
+use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard\Support\Access;
+use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard\Support\Assets;
 use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard\Support\Format;
 use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard\Support\Period;
 use PasichDev\SecurityGuard\Config\Settings;
@@ -19,7 +21,8 @@ use PasichDev\SecurityGuard\Contract\EventLogInterface;
 
 try {
     $sgPage = Page::getByPath('/dashboard/security_guard/overview');
-    if (!is_object($sgPage) || $sgPage->isError() || !(new Checker($sgPage))->canViewPage()) {
+    // Лише адміністратори — так само, як і сама панель.
+    if (!Access::isAdministrator() || !is_object($sgPage) || $sgPage->isError() || !(new Checker($sgPage))->canViewPage()) {
         return;
     }
     $sgApp = app();
@@ -46,7 +49,7 @@ $sgModeMeta = [
     'disabled' => [t('Disabled'), 'text-bg-danger'],
 ];
 $sgMeta = $sgModeMeta[$sgMode] ?? $sgModeMeta['monitor'];
-$sgCss = \Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard\Support\BaseController::assetUrl('css/security-guard.css');
+$sgCss = Assets::url('css/security-guard.css');
 ?>
 <link rel="stylesheet" href="<?= h($sgCss) ?>">
 <div class="card sg-dashboard-card">

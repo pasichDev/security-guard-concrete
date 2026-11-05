@@ -77,9 +77,9 @@ class Traffic extends BaseController
         $this->set('lastIngestAt', (int) $this->safe(function () use ($stats) {
             return $stats->lastIngestAt();
         }, 0, ''));
-        $this->set('sources', (array) $this->safe(function () {
-            return $this->service(LogIngestInterface::class)->discoverSources();
-        }, [], t('Hosting log sources')));
+        $cache = $this->logSourcesCache();
+        $this->set('sources', (array) $cache['sources']);
+        $this->set('sourcesAt', (int) ($cache['at'] ?? 0));
         $this->set('botRanges', $this->botRanges());
         $this->set('canUpdateRanges', $this->rangeUpdater() !== null);
         $this->set('excludedIps', (string) $this->safe(function () {
@@ -95,7 +95,7 @@ class Traffic extends BaseController
         }
         $updater = $this->rangeUpdater();
         if ($updater === null) {
-            $this->flash('error', t('The bot range update service is not available in this version.'));
+            $this->notify('error', t('The bot range update service is not available in this version.'));
 
             return $this->back();
         }
@@ -107,13 +107,25 @@ class Traffic extends BaseController
         }, false, t('Bot range update'));
         if (is_array($result) && empty($result['updated']) && empty($result['unchanged'])) {
             $this->describeUpdate($result);
-            $this->flash('error', t('Could not update the bot ranges.'));
+            $this->notify('error', t('Could not update the bot ranges.'));
         } elseif ($result === false) {
-            $this->flash('error', t('Could not update the bot ranges.') . ($this->serviceErrors ? ' ' . implode(' ', $this->serviceErrors) : ''));
+            $this->notify('error', t('Could not update the bot ranges.') . ($this->serviceErrors ? ' ' . implode(' ', $this->serviceErrors) : ''));
         } else {
             $this->rebuildState();
-            $this->flash('success', t('Bot ranges updated.') . $this->describeUpdate($result));
+            $this->notify('success', t('Bot ranges updated.') . $this->describeUpdate($result));
         }
+
+        return $this->back($this->postedPeriod());
+    }
+
+    /** Повторний пошук файлів логів (результат зберігається, сторінки його лише читають). */
+    public function refresh_sources()
+    {
+        if (!$this->isValidPost('sg_refresh_sources')) {
+            return $this->back();
+        }
+        $r = $this->refreshLogSources();
+        $this->notify('success', t('Log sources found: %s.', count((array) ($r['sources'] ?? []))));
 
         return $this->back($this->postedPeriod());
     }
@@ -190,7 +202,7 @@ class Traffic extends BaseController
             foreach ($errors as $bot => $err) {
                 $e[] = $bot . ': ' . mb_substr((string) $err, 0, 120);
             }
-            $this->flash('error', t('Some sources could not be downloaded:') . ' ' . implode('; ', $e));
+            $this->notify('error', t('Some sources could not be downloaded:') . ' ' . implode('; ', $e));
         }
 
         return $msg;

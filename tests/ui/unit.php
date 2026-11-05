@@ -60,6 +60,37 @@ check('DST days', $p->days() === ['2026-10-24', '2026-10-25', '2026-10-26']);
 $p = Period::lastDays(1, $now);
 check('lastDays(1)', $p->fromDay === '2026-11-05' && $p->toDay === '2026-11-05');
 
+// --- Період повністю в майбутньому
+$p = Period::fromInput('custom', '2027-01-01', '2027-02-01', $now);
+check('future period clamped to today', $p->fromDay === '2026-11-05' && $p->toDay === '2026-11-05' && $p->notice !== '');
+
+// --- LogPaths: межі акаунта, символьні посилання, шаблони лише в імені файлу
+require_once SG_PKG . '/controllers/single_page/dashboard/security_guard/support/log_paths.php';
+use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard\Support\LogPaths;
+$home = sys_get_temp_dir() . '/sg-home-' . getmypid();
+@mkdir($home . '/access-logs', 0755, true);
+@mkdir($home . '/logs', 0755, true);
+file_put_contents($home . '/access-logs/example.com-ssl_log', 'x');
+@symlink('/etc', $home . '/escape');
+$root = realpath($home);
+check('logpaths root ok', LogPaths::validateRoot($root, $root) === null);
+check('logpaths root ~', LogPaths::validateRoot('~/logs', $root) === null);
+check('logpaths root outside', LogPaths::validateRoot('/etc', $root) !== null);
+check('logpaths root symlink escape', LogPaths::validateRoot($root . '/escape', $root) !== null);
+check('logpaths root dotdot', LogPaths::validateRoot($root . '/../', $root) !== null);
+check('logpaths source glob in name', LogPaths::validateSource('~/access-logs/*-ssl_log', $root) === null);
+check('logpaths source glob in dir', LogPaths::validateSource('~/*/x.log', $root) !== null);
+check('logpaths source outside', LogPaths::validateSource('/var/log/*.log', $root) !== null);
+check('logpaths source via symlink', LogPaths::validateSource($root . '/escape/passwd', $root) !== null);
+check('logpaths no root', LogPaths::validateSource('/x', null) !== null && LogPaths::validateRoot('', null) === null);
+$f = LogPaths::filter([$root . '/access-logs/example.com-ssl_log' => 1, '/etc/passwd' => 2, $root . '/escape/passwd' => 3], $root);
+check('logpaths filter keeps only inside', array_keys($f) === [$root . '/access-logs/example.com-ssl_log']);
+@unlink($home . '/escape');
+@unlink($home . '/access-logs/example.com-ssl_log');
+@rmdir($home . '/access-logs');
+@rmdir($home . '/logs');
+@rmdir($home);
+
 // --- Format
 check('flag UA', Format::flag('ua') === "\u{1F1FA}\u{1F1E6}");
 check('flag bad', Format::flag('<x>') === '' && Format::flag('') === '' && Format::flag('XX') === '');
@@ -96,7 +127,7 @@ check('csv plain', $m->invoke(null, '/index.php?a=1') === '/index.php?a=1');
 eval('namespace Concrete\Core\Package; class PackageService { public $cfg; public function getClass($h) { return $this; } public function getConfig() { return $this->cfg; } }');
 require_once SG_PKG . '/src/Config/Settings.php';
 // Підпис самоперевірки залежить від каталогу стану Concrete — тут заглушка.
-eval('namespace PasichDev\\SecurityGuard\\Http; final class SelfProbe { public const HEADER = "X-Security-Guard-Probe"; public static function headerValue(): string { return "1:test"; } }');
+eval('namespace PasichDev\\SecurityGuard\\Http; final class SelfProbe { public const HEADER = "X-Security-Guard-Probe"; public static function headerValue(): string { return "1:test"; } public static function headerFor(string $m, string $u): string { return "1:test"; } }');
 require_once SG_PKG . '/src/Audit/Checklist.php';
 
 final class SgCfg

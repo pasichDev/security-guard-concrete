@@ -61,26 +61,47 @@ final class LogIngest implements LogIngestInterface
             }
             $db = $this->app->make(Connection::class);
             $pendingStore = $this->pendingStore();
+            $excludeList = trim((string) $settings['log_exclude_ips'] . "\n" . (string) ($options['excludeIps'] ?? ''));
+            $exclude = new IpMatcher($excludeList);
+            // Дні, пораховані з іншим списком виключених IP, несумісні з новими —
+            // зміна списку (налаштування чи --exclude-ip) означає повну перебудову.
+            $rebuild = !empty($options['rebuild']);
+            $notices = [];
+            $fp = self::excludeFingerprint($exclude);
+            if ($pendingStore instanceof ConfigPendingDaysStore) {
+                $prevFp = $pendingStore->getExcludeFingerprint();
+                if ($prevFp !== '' && $prevFp !== $fp && !$rebuild) {
+                    $rebuild = true;
+                    $notices[] = 'The list of excluded IPs changed since the last import: all days are recomputed.';
+                }
+            }
             $engine = new IngestEngine(
                 $this->timezone(),
                 static function () use ($settings): AttackClassifierInterface {
                     return new RuleSetClassifier(new RuleSet($settings));
                 },
-                new IpMatcher(trim((string) $settings['log_exclude_ips'] . "\n" . (string) ($options['excludeIps'] ?? ''))),
+                $exclude,
                 new DbCursorStore($db),
                 $pendingStore,
                 new StatsRepository($db),
                 new CrawlerVerifier($this->verifiedBotIps($db), (new BotRangeStore($db))->rangesByBot()),
-                $pendingStore instanceof HostWafStateStoreInterface ? $pendingStore : null
+                $pendingStore instanceof HostWafStateStoreInterface ? $pendingStore : null,
+                $pendingStore instanceof DayIndexStoreInterface ? $pendingStore : null
             );
 
-            return $engine->run($sources, [
+            $result = $engine->run($sources, [
                 'timeBudget' => (int) ($options['timeBudget'] ?? 0),
-                'days' => (int) ($options['days'] ?? 0),
-                'rebuild' => !empty($options['rebuild']),
+                'days' => $rebuild ? 0 : (int) ($options['days'] ?? 0),
+                'rebuild' => $rebuild,
                 'hostWafDetect' => !empty($settings['host_waf_detect']),
                 'hostWafSizes' => (string) ($settings['host_waf_sizes'] ?? ''),
             ]);
+            if ($pendingStore instanceof ConfigPendingDaysStore && !$result['errors']) {
+                $pendingStore->setExcludeFingerprint($fp);
+            }
+            $result['notices'] = $notices;
+
+            return $result;
         } catch (Throwable $e) {
             $this->logError($e);
 
@@ -147,6 +168,15 @@ final class LogIngest implements LogIngestInterface
         }
 
         return $out;
+    }
+
+    /** Відбиток списку виключень (порядок і дублікати не важливі). */
+    public static function excludeFingerprint(IpMatcher $m): string
+    {
+        $items = array_unique($m->items());
+        sort($items);
+
+        return $items ? sha1(implode("\n", $items)) : 'none';
     }
 
     /** Черга днів: БД-конфіг пакета; у тестах можна підмінити прив'язкою інтерфейсу. */

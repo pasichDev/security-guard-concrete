@@ -66,13 +66,14 @@ final class StatsCommand extends Command
             $table->setHeaders(['Day', 'Requests', 'Attacks', 'Attack IPs', 'Login failed', '403', '508']);
             foreach ($days as $r) {
                 $rep = $r['breakdown']['report'] ?? [];
-                $table->addRow([$r['day'], $r['totalRequests'], (int) ($rep['attackRequests'] ?? 0), (int) ($rep['attackIps'] ?? 0),
-                    (int) ($rep['loginFailed'] ?? 0), $r['blocked403'], $r['overload508']]);
+                // Звіт рахував усі рядки всіх файлів (без дедуплікації) — ці цифри в breakdown.report.
+                $table->addRow([$r['day'], (int) ($rep['totalRequests'] ?? $r['totalRequests']), (int) ($rep['attackRequests'] ?? 0), (int) ($rep['attackIps'] ?? 0),
+                    (int) ($rep['loginFailed'] ?? 0), (int) ($rep['blocked403'] ?? $r['blocked403']), (int) ($rep['overload508'] ?? $r['overload508'])]);
             }
             $rep = $sum['breakdown']['report'];
             $table->addRow(new TableSeparator());
-            $table->addRow(['Total', $sum['totalRequests'], $rep['attackRequests'], $rep['attackIps'] . ($rep['attackIpsApprox'] ? ' ~' : ''),
-                $rep['loginFailed'], $sum['blocked403'], $sum['overload508']]);
+            $table->addRow(['Total', $rep['totalRequests'], $rep['attackRequests'], $rep['attackIps'] . ($rep['attackIpsApprox'] ? ' ~' : ''),
+                $rep['loginFailed'], $rep['blocked403'], $rep['overload508']]);
         } else {
             $table->setHeaders(['Day', 'Requests', 'IPs', 'Attacks', 'Attack IPs', 'Login failed', '403', 'Host 403', 'Host IPs', '404', '5xx', '508', 'Bots', 'MB']);
             foreach ($days as $r) {

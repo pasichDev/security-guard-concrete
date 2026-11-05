@@ -138,7 +138,7 @@ $expected = [];
 foreach ($requests as $q) {
     $day = (new DateTimeImmutable('@' . $q['ts']))->setTimezone($tz)->format('Y-m-d');
     $e = &$expected[$day];
-    $e = ($e ?? []) + ['total' => 0, 'excluded' => 0, 'fakeAttacks' => 0, 'reportAttacks' => 0, 'blocked403' => 0, 'overload508' => 0, 'loginFailed' => 0, 'errors404' => 0];
+    $e = ($e ?? []) + ['reportAttacksRaw' => 0, 'totalRaw' => 0, 'total' => 0, 'excluded' => 0, 'fakeAttacks' => 0, 'reportAttacks' => 0, 'blocked403' => 0, 'overload508' => 0, 'loginFailed' => 0, 'errors404' => 0];
     if ($q['ip'] === $excludedIp) {
         ++$e['excluded'];
         unset($e);
@@ -147,6 +147,10 @@ foreach ($requests as $q) {
     ++$e['total'];
     $e['fakeAttacks'] += stripos($q['path'], '/evil') !== false ? 1 : 0;
     $e['reportAttacks'] += preg_match('~wp-~i', $q['path']) ? 1 : 0;
+    // «Як у звіті» рахує всі рядки всіх файлів: перекриття живого логу з архівом — двічі.
+    $inOverlap = $q['stream'] === 'ssl' && $q['ts'] >= $liveFrom && $q['ts'] < $cut;
+    $e['reportAttacksRaw'] = ($e['reportAttacksRaw'] ?? 0) + (preg_match('~wp-~i', $q['path']) ? ($inOverlap ? 2 : 1) : 0);
+    $e['totalRaw'] = ($e['totalRaw'] ?? 0) + ($inOverlap ? 2 : 1);
     $e['blocked403'] += $q['status'] === 403 ? 1 : 0;
     $e['overload508'] += $q['status'] === 508 ? 1 : 0;
     $e['errors404'] += $q['status'] === 404 ? 1 : 0;

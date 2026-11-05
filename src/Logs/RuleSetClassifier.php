@@ -18,6 +18,9 @@ final class RuleSetClassifier implements AttackClassifierInterface
 
     /** @var RuleSet */
     private $rules;
+    /** @var array<string, array|false> кеш результатів: у логах ті самі URL і UA повторюються тисячі разів */
+    private $memo = [];
+    private const MEMO_MAX = 10000;
 
     public function __construct(RuleSet $rules)
     {
@@ -29,15 +32,12 @@ final class RuleSetClassifier implements AttackClassifierInterface
         if ($uri === '' && $method === '') {
             return null;
         }
-        $hit = $this->rules->classifyRequest($method === '' ? 'GET' : $method, $uri, $userAgent);
-        if (!is_array($hit) || !isset($hit['category'])) {
-            return null;
-        }
-        if (in_array($hit['category'], self::NON_ATTACK_CATEGORIES, true)) {
+        $hit = $this->classifyAny($method, $uri, $userAgent);
+        if ($hit === null || in_array($hit['category'], self::NON_ATTACK_CATEGORIES, true)) {
             return null;
         }
 
-        return ['rule' => (string) ($hit['rule'] ?? ''), 'category' => (string) $hit['category']];
+        return $hit;
     }
 
     /** Класифікація без відсіювання «бот»-категорій (для розбивки відмов хостингу). */
@@ -46,11 +46,23 @@ final class RuleSetClassifier implements AttackClassifierInterface
         if ($uri === '' && $method === '') {
             return null;
         }
-        $hit = $this->rules->classifyRequest($method === '' ? 'GET' : $method, $uri, $userAgent);
-        if (!is_array($hit) || !isset($hit['category'])) {
-            return null;
+        $key = $method . ' ' . $uri . "\0" . $userAgent;
+        if (strlen($key) > 600) {
+            $key = md5($key);
         }
+        if (isset($this->memo[$key])) {
+            return $this->memo[$key] === false ? null : $this->memo[$key];
+        }
+        $hit = $this->rules->classifyRequest($method === '' ? 'GET' : $method, $uri, $userAgent);
+        $out = is_array($hit) && isset($hit['category'])
+            ? ['rule' => (string) ($hit['rule'] ?? ''), 'category' => (string) $hit['category'],
+                'strength' => ($hit['strength'] ?? 'strong') === 'weak' ? 'weak' : 'strong']
+            : null;
+        if (count($this->memo) >= self::MEMO_MAX) {
+            $this->memo = [];
+        }
+        $this->memo[$key] = $out ?? false;
 
-        return ['rule' => (string) ($hit['rule'] ?? ''), 'category' => (string) $hit['category']];
+        return $out;
     }
 }

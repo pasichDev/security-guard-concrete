@@ -145,7 +145,6 @@ final class Format
             'traversal' => t('Path traversal'),
             'scanner' => t('Scanners'),
             'ai_crawler' => t('AI crawlers'),
-            'concrete' => t('Concrete CMS exploits'),
             'honeypot' => t('Honeypot'),
             'bruteforce' => t('Password guessing'),
             'ratelimit' => t('Rate limit'),

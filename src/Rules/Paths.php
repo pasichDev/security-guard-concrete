@@ -26,6 +26,12 @@ final class Paths
         return (bool) preg_match('#^/(?:index\.php/)?login/authenticate/concrete/?$#i', $path);
     }
 
+    /** Видача токена OAuth2 ядра (password grant — ще одна точка підбору пароля). */
+    public static function isOauthToken(string $path): bool
+    {
+        return (bool) preg_match('#^/(?:index\.php/)?oauth/2\.0/token/?$#i', $path);
+    }
+
     /** [шлях, query] із рядка запиту (шлях без схеми/хоста). */
     public static function split(string $uri): array
     {
@@ -65,7 +71,7 @@ final class Paths
     {
         $path = strtolower(self::decode($path));
         $path = str_replace('\\', '/', $path);
-        $path = (string) preg_replace('#/{2,}#', '/', $path);
+        $path = preg_replace('#/{2,}#', '/', $path) ?? $path;
 
         return $path === '' ? '/' : $path;
     }

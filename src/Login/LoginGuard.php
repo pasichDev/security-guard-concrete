@@ -62,10 +62,15 @@ final class LoginGuard
             $known = $whitelist instanceof Whitelist ? $whitelist->contains($ip) : false;
 
             if (!empty($settings['trust_admin_ip'])) {
-                $days = max(1, (int) ($settings['trust_admin_days'] ?? 7));
-                $whitelist->add($ip, t('Administrator sign-in: %s', $name), time() + $days * 86400, true);
+                // За замовчуванням 1 день: IP часто спільна (NAT, мобільний оператор).
+                $days = max(1, (int) ($settings['trust_admin_days'] ?? 1));
+                $until = time() + $days * 86400;
+                $whitelist->add($ip, t('Administrator sign-in: %s', $name), $until, true);
+                // Хто саме входив: підбір ІНШИХ логінів з цієї IP і далі рахується.
+                AdminIps::remember($ip, $name, $until);
+                // Адміністратор довів пароль — знімаємо бан саме з його IP/мережі.
                 $this->app->make(BlockServiceInterface::class)->unblock($ip);
-                Counters::store()->delete('bf:' . $ip);
+                Counters::store()->delete('bf:' . IpRange::subject($ip));
             }
 
             if (!empty($settings['notify_admin_new_ip']) && !$known) {

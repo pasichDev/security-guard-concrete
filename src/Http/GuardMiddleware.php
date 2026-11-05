@@ -40,6 +40,7 @@ use Throwable;
 final class GuardMiddleware implements MiddlewareInterface
 {
     private const SESSION_TRUST_KEY = 'security_guard.trusted_user';
+    private const TRUST_RECHECK = 300;
 
     /** @var Application */
     private $app;
@@ -54,7 +55,7 @@ final class GuardMiddleware implements MiddlewareInterface
         $firewall = null;
         $info = null;
         // Підписаний запит «Перевірки безпеки» з самого сервера — без перевірок WAF.
-        if ($request->headers->has(SelfProbe::HEADER) && SelfProbe::isValid($request)) {
+        if ($request->headers->has(SelfProbe::HEADER) && SelfProbe::isValid($request, null, Counters::store())) {
             return $frame->next($request);
         }
         try {
@@ -68,6 +69,8 @@ final class GuardMiddleware implements MiddlewareInterface
                     // публічна реєстрація вимкнена: інакше будь-хто отримав би обхід
                     // перевірок для /ccm/ (IDOR на зразок CVE-2026-8237) просто зареєструвавшись.
                     return !$this->publicRegistrationOpen() && $this->sessionUserId($request, $info) > 0;
+                }, function () use ($request, $info): bool {
+                    return $this->sessionUserId($request, $info) > 0;
                 });
                 if ($decision !== null) {
                     return $this->deny($decision);
@@ -83,14 +86,13 @@ final class GuardMiddleware implements MiddlewareInterface
         if ($firewall !== null && $info !== null) {
             try {
                 if ($info->isLoginAttempt) {
-                    $failed = !($response instanceof RedirectResponse) && !$response->isRedirection();
-                    $decision = $firewall->afterLogin($info, $failed);
+                    $decision = $firewall->afterLogin($info, $this->loginFailed($info, $response));
                     if ($decision !== null) {
                         $response = $this->deny($decision);
                     }
                 }
-                if ($firewall->maintenanceDue()) {
-                    (new Maintenance($this->app))->run();
+                if ($firewall->maintenanceFallbackDue()) {
+                    $this->scheduleMaintenance();
                 }
             } catch (Throwable $e) {
                 $this->log($e);
@@ -98,6 +100,43 @@ final class GuardMiddleware implements MiddlewareInterface
         }
 
         return $response;
+    }
+
+    /** Невдалий вхід: форма показана знову (успіх — redirect) або OAuth2 відповів invalid_grant. */
+    private function loginFailed(RequestInfo $info, Response $response): bool
+    {
+        if (Paths::isOauthToken($info->pathInfo) || Paths::isOauthToken(Paths::normalize($info->path()))) {
+            $code = $response->getStatusCode();
+            if ($code !== 400 && $code !== 401) {
+                return false;
+            }
+            $content = (string) $response->getContent();
+
+            return $code === 401 || stripos($content, 'invalid_grant') !== false || stripos($content, 'invalid_credentials') !== false;
+        }
+
+        return !($response instanceof RedirectResponse) && !$response->isRedirection();
+    }
+
+    /**
+     * Запасне очищення, коли cron не працює: після відправки відповіді
+     * (fastcgi/litespeed finish), з жорстким лімітом часу. Відвідувач не чекає.
+     */
+    private function scheduleMaintenance(): void
+    {
+        $app = $this->app;
+        register_shutdown_function(static function () use ($app): void {
+            try {
+                if (function_exists('fastcgi_finish_request')) {
+                    @fastcgi_finish_request();
+                } elseif (function_exists('litespeed_finish_request')) {
+                    @litespeed_finish_request();
+                }
+                @set_time_limit(30);
+                (new Maintenance($app))->run(5.0);
+            } catch (Throwable $e) {
+            }
+        });
     }
 
     private function firewall(): Firewall
@@ -115,7 +154,13 @@ final class GuardMiddleware implements MiddlewareInterface
         $bots = null;
         $services = static function (string $id) use ($app, $map, $counters, &$bots) {
             if ($id === 'bots') {
-                return $bots ?? ($bots = new BotVerifier($app, $counters));
+                if ($bots === null) {
+                    $cache = $app->make(StateCacheInterface::class);
+                    $ranges = method_exists($cache, 'botRanges') ? $cache->botRanges() : [];
+                    $bots = new BotVerifier($app, $counters, null, null, null, $ranges);
+                }
+
+                return $bots;
             }
 
             return $app->make($map[$id]);
@@ -147,17 +192,26 @@ final class GuardMiddleware implements MiddlewareInterface
 
         $path = Paths::normalize($info->path());
         $info->cookies = $this->cookies($request);
-        if ($info->method === 'POST') {
-            if (Paths::isLoginAuthenticate($info->pathInfo) || Paths::isLoginAuthenticate($path)) {
-                $post = $request->request->all();
-                $name = $post['uName'] ?? null;
-                $password = $post['uPassword'] ?? null;
-                // Порожня форма — помилка введення, а не підбір пароля.
-                $info->isLoginAttempt = is_string($name) && trim($name) !== '' && is_string($password) && $password !== '';
-            } elseif (!empty($settings['scan_post_body'])) {
-                // На службових шляхах Firewall не дивиться в тіло, якщо користувач увійшов.
-                $info->body = $this->body($request);
-            }
+        $info->fetchSite = strtolower(trim((string) $request->headers->get('Sec-Fetch-Site', '')));
+        $info->fetchDest = strtolower(trim((string) $request->headers->get('Sec-Fetch-Dest', '')));
+        if ($info->method === 'POST'
+            && (Paths::isLoginAuthenticate($info->pathInfo) || Paths::isLoginAuthenticate($path))) {
+            $post = $request->request->all();
+            $name = $post['uName'] ?? null;
+            $password = $post['uPassword'] ?? null;
+            // Порожня форма — помилка введення, а не підбір пароля. Пароль не скануємо.
+            $info->isLoginAttempt = is_string($name) && trim($name) !== '' && is_string($password) && $password !== '';
+            $info->loginUser = is_string($name) ? strtolower(trim($name)) : '';
+        } elseif ($info->method === 'POST'
+            && (Paths::isOauthToken($info->pathInfo) || Paths::isOauthToken($path))) {
+            $post = $request->request->all();
+            $grant = $post['grant_type'] ?? null;
+            $name = $post['username'] ?? null;
+            $info->isLoginAttempt = $grant === 'password' && is_string($name) && trim($name) !== '';
+            $info->loginUser = is_string($name) ? strtolower(trim($name)) : '';
+        } elseif (in_array($info->method, ['POST', 'PUT', 'PATCH', 'DELETE'], true) && !empty($settings['scan_post_body'])) {
+            // На службових шляхах Firewall не дивиться в тіло, якщо користувач увійшов.
+            $info->body = $this->body($request);
         }
 
         return $info;
@@ -190,12 +244,28 @@ final class GuardMiddleware implements MiddlewareInterface
         return $out;
     }
 
-    /** Текст тіла для сигнатур: сирий urlencoded/JSON/текст або поля multipart без файлів. */
+    /**
+     * Текст тіла для сигнатур: поля multipart без файлів; інакше перші
+     * MAX_BODY_BYTES сирого вмісту (JSON/urlencoded/текст), навіть якщо тіло більше.
+     */
     private function body(Request $request): string
     {
         $type = strtolower((string) $request->headers->get('Content-Type', ''));
+        if (strpos($type, 'multipart/') === 0) {
+            $fields = $request->request->all();
+
+            return $fields ? substr(http_build_query($fields), 0, RuleSet::MAX_BODY_BYTES) : '';
+        }
         $length = (int) $request->headers->get('Content-Length', '0');
-        if (strpos($type, 'multipart/') === 0 || $length > RuleSet::MAX_BODY_BYTES) {
+        if ($length > RuleSet::MAX_BODY_BYTES) {
+            $stream = @fopen('php://input', 'rb');
+            if ($stream !== false) {
+                $head = (string) stream_get_contents($stream, RuleSet::MAX_BODY_BYTES);
+                fclose($stream);
+                if ($head !== '') {
+                    return $head;
+                }
+            }
             $fields = $request->request->all();
 
             return $fields ? substr(http_build_query($fields), 0, RuleSet::MAX_BODY_BYTES) : '';
@@ -221,7 +291,8 @@ final class GuardMiddleware implements MiddlewareInterface
         }
         $session = $this->app->make('session');
         $cached = $session->get(self::SESSION_TRUST_KEY);
-        if (is_array($cached) && (int) ($cached[0] ?? 0) === $uID) {
+        // Кеш у сесії — на 5 хв: зняті права адміністратора перестають діяти швидко.
+        if (is_array($cached) && (int) ($cached[0] ?? 0) === $uID && (int) ($cached[2] ?? 0) > time() - self::TRUST_RECHECK) {
             return (bool) ($cached[1] ?? false);
         }
         $trusted = false;
@@ -232,7 +303,7 @@ final class GuardMiddleware implements MiddlewareInterface
                 || in_array(ADMIN_GROUP_ID, $groups) || isset($groups[ADMIN_GROUP_ID])
                 || (bool) $this->app->make('helper/concrete/dashboard')->canRead();
         }
-        $session->set(self::SESSION_TRUST_KEY, [$uID, $trusted]);
+        $session->set(self::SESSION_TRUST_KEY, [$uID, $trusted, time()]);
 
         return $trusted;
     }
@@ -261,6 +332,9 @@ final class GuardMiddleware implements MiddlewareInterface
 
     private function deny(Decision $decision): Response
     {
+        if ($decision->isRedirect()) {
+            return new RedirectResponse($decision->location, 302, ['Cache-Control' => 'no-store, private', 'Referrer-Policy' => 'no-referrer']);
+        }
         $code = $decision->status;
         if ($decision->isBruteforce()) {
             $title = t('Too Many Requests');

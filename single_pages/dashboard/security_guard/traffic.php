@@ -15,6 +15,7 @@ use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard
  * @var array $breakdown
  * @var int $lastIngestAt
  * @var array $sources
+ * @var int $sourcesAt
  * @var string $excludedIps
  * @var array|null $botRanges
  * @var bool $canUpdateRanges
@@ -283,7 +284,15 @@ $table = static function (array $pairs, string $keyTitle, bool $isUrl) {
     <section class="sg-card">
         <div class="sg-card-head">
             <h3><?= h(t('Log sources')) ?></h3>
-            <a class="small d-print-none" href="<?= h((string) URL::to('/dashboard/security_guard/settings')) ?>#sg-group-hosting-logs"><?= h(t('Configure')) ?></a>
+            <div class="d-flex flex-wrap gap-2 align-items-center d-print-none">
+                <span class="small sg-muted"><?= h(!empty($sourcesAt) ? t('List updated: %s', Format::dateTime($sourcesAt)) : t('The list has not been built yet')) ?></span>
+                <form method="post" action="<?= h((string) $view->action('refresh_sources')) ?>" class="d-inline">
+                    <?php $token->output('sg_refresh_sources'); ?>
+                    <?php foreach ($period->query() as $qk => $qv) { ?><input type="hidden" name="<?= h($qk) ?>" value="<?= h($qv) ?>"><?php } ?>
+                    <button type="submit" class="btn btn-outline-secondary btn-sm"><?= h(t('Find log files again')) ?></button>
+                </form>
+                <a class="small" href="<?= h((string) URL::to('/dashboard/security_guard/settings')) ?>#sg-group-hosting-logs"><?= h(t('Configure')) ?></a>
+            </div>
         </div>
         <?php if (!$sources) { ?>
             <p class="sg-muted mb-0"><?= h(t('No access log files were found. Specify the paths in the settings (for example ~/access-logs/example.com-ssl_log).')) ?></p>

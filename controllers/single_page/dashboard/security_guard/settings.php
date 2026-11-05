@@ -5,8 +5,11 @@ namespace Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\Securit
 
 use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard\Support\BaseController;
 use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard\Support\IpRange;
+use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard\Support\Format;
+use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard\Support\LogPaths;
+use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard\Support\Period;
 use PasichDev\SecurityGuard\Config\Settings as SettingsStore;
-use PasichDev\SecurityGuard\Contract\LogIngestInterface;
+use PasichDev\SecurityGuard\Contract\StatsRepositoryInterface;
 
 defined('C5_EXECUTE') or die('Access Denied.');
 
@@ -54,6 +57,9 @@ class Settings extends BaseController
 
     public const RESPONSE_CODES = [403, 404, 410];
 
+    /** @var array|null розбивка логів за 30 днів для перевірки пасток (один раз на запит) */
+    private $hpBreakdown;
+
     public function view()
     {
         $values = $this->get('values');
@@ -67,9 +73,8 @@ class Settings extends BaseController
         $this->set('fields', $this->fieldDefinitions());
         $this->set('clientIps', $this->clientIps());
         $this->set('siteUrl', rtrim($this->request->getSchemeAndHttpHost() . $this->request->getBasePath(), '/'));
-        $this->set('sources', $this->safe(function () {
-            return $this->service(LogIngestInterface::class)->discoverSources();
-        }, [], ''));
+        $cache = $this->logSourcesCache();
+        $this->set('sources', $cache['sources'] ?? []);
     }
 
     public function save()
@@ -146,7 +151,9 @@ class Settings extends BaseController
             return null;
         }
         $this->rebuildState();
-        $this->flash('success', $generated
+        // Шляхи могли змінитися — оновлюємо збережений перелік джерел один раз тут.
+        $this->refreshLogSources();
+        $this->notify('success', $generated
             ? t('Settings saved. A new emergency bypass token was generated — save the bypass link in a safe place.')
             : t('Settings saved.'));
 
@@ -229,14 +236,20 @@ class Settings extends BaseController
                         $this->error->add(t('%s: "%s" must be a path starting with "/" without spaces.', $label, mb_substr($l, 0, 60)));
                         break;
                     }
+                    $why = $this->honeypotPathProblem($l);
+                    if ($why !== null) {
+                        $this->error->add($label . ': ' . $why);
+                    }
                 }
 
                 return implode("\n", $lines);
             case 'sources':
                 $lines = $this->lines($raw, 20);
+                $root = $this->logRoot();
                 foreach ($lines as $l) {
-                    if (strlen($l) > 255 || preg_match('#(^|/)\.\.(/|$)#', $l) || preg_match('/^[a-z][a-z0-9+.-]*:\/\//i', $l)) {
-                        $this->error->add(t('%s: "%s" is not a local file path.', $label, mb_substr($l, 0, 60)));
+                    $why = LogPaths::validateSource($l, $root);
+                    if ($why !== null) {
+                        $this->error->add($label . ': ' . $why);
                         break;
                     }
                 }
@@ -244,8 +257,9 @@ class Settings extends BaseController
                 return implode("\n", $lines);
             case 'path':
                 $raw = trim($raw);
-                if ($raw !== '' && (strlen($raw) > 255 || preg_match('#(^|/)\.\.(/|$)#', $raw) || preg_match('/^[a-z][a-z0-9+.-]*:\/\//i', $raw) || preg_match('/[\r\n]/', $raw))) {
-                    $this->error->add(t('%s: "%s" is not a local file path.', $label, mb_substr($raw, 0, 60)));
+                $why = LogPaths::validateRoot($raw, $this->logRoot());
+                if ($why !== null) {
+                    $this->error->add($label . ': ' . $why);
                 }
 
                 return $raw;
@@ -290,6 +304,75 @@ class Settings extends BaseController
             default:
                 return mb_substr(trim($raw), 0, 1000);
         }
+    }
+
+    protected function logRoot(): ?string
+    {
+        $host = (string) $this->request->getHost();
+
+        return LogPaths::root($host);
+    }
+
+    /**
+     * Чому адреса не годиться як пастка (null — годиться). Пастка, що збігається
+     * з реальною сторінкою чи службовим шляхом, банила б звичайних відвідувачів
+     * і редакторів.
+     */
+    protected function honeypotPathProblem(string $path): ?string
+    {
+        $norm = '/' . ltrim(preg_replace('#^/index\.php(?=/|$)#i', '', $path) ?? $path, '/');
+        if (strpbrk($norm, '?#') !== false) {
+            return t('"%s": use a path without a query string.', mb_substr($path, 0, 60));
+        }
+        $trimmed = rtrim($norm, '/');
+        if ($trimmed === '') {
+            return t('"%s" is the home page.', $path);
+        }
+        foreach (['/application/files', '/concrete', '/ccm', '/dashboard', '/login', '/packages', '/updates'] as $prefix) {
+            if ($trimmed === $prefix || strpos($trimmed . '/', $prefix . '/') === 0) {
+                return t('"%s" is inside %s, which the site itself uses.', mb_substr($path, 0, 60), $prefix);
+            }
+        }
+        $page = $this->safe(function () use ($trimmed) {
+            $c = \Concrete\Core\Page\Page::getByPath($trimmed);
+
+            return (is_object($c) && !$c->isError() && $c->getCollectionID()) ? $c : null;
+        }, null, '');
+        if ($page) {
+            return t('"%s" is an existing page of the site.', mb_substr($path, 0, 60));
+        }
+        // Логи хостингу: якщо на цю адресу ходять і переважно отримують не 404/403 — це реальна сторінка.
+        if ($this->hpBreakdown === null) {
+            $this->hpBreakdown = (array) $this->safe(function () {
+                $p = Period::lastDays(30);
+
+                return (array) ($this->service(StatsRepositoryInterface::class)->summarize($p->fromDay, $p->toDay)['breakdown'] ?? []);
+            }, [], '');
+        }
+        $b = $this->hpBreakdown;
+        $usage = $this->safe(function () use ($trimmed, $b) {
+            $count = static function ($list) use ($trimmed): int {
+                $n = 0;
+                foreach (Format::pairs($list, 1000) as [$url, $c]) {
+                    $u = rtrim((string) (parse_url($url, PHP_URL_PATH) ?? ''), '/');
+                    $u = preg_replace('#^/index\.php(?=/|$)#i', '', $u) ?? $u;
+                    if ($u === $trimmed) {
+                        $n += $c;
+                    }
+                }
+
+                return $n;
+            };
+            $all = $count($b['topUrls'] ?? []);
+            $bad = $count($b['top404'] ?? []) + $count(($b['hostWaf'] ?? [])['topUrls'] ?? []);
+
+            return [$all, max(0, $all - $bad)];
+        }, [0, 0], '');
+        if ($usage[0] >= 5 && $usage[1] > $usage[0] / 2) {
+            return t('"%s" is visited and answered successfully (%s of %s requests in the hosting logs over 30 days).', mb_substr($path, 0, 60), $usage[1], $usage[0]);
+        }
+
+        return null;
     }
 
     /** @return string[] */

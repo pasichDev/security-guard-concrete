@@ -113,6 +113,34 @@ final class Whitelist implements WhitelistInterface
         return false;
     }
 
+    /**
+     * Рівень довіри за знімком стану: 'manual' — loopback, whitelist_ranges,
+     * ручні записи таблиці (повний обхід); 'auto' — автодовіра після входу
+     * адміністратора (без евристик, але бани й підрахунок підбору чужих
+     * логінів діють); null — не довірена.
+     */
+    public static function trustLevel(string $ip, array $state, int $now): ?string
+    {
+        if (IpRange::isLoopback($ip)
+            || IpRange::matchesAny($ip, IpRange::parseList((string) ($state['settings']['whitelist_ranges'] ?? '')))) {
+            return 'manual';
+        }
+        $level = null;
+        foreach ((array) ($state['whitelist'] ?? []) as $entry) {
+            $expires = (int) ($entry['expires'] ?? 0);
+            if (($expires === 0 || $expires > $now) && IpRange::matches($ip, (string) ($entry['range'] ?? ''))) {
+                // Старий знімок без прапорця auto: запис із терміном вважаємо автодовірою.
+                $auto = array_key_exists('auto', $entry) ? !empty($entry['auto']) : $expires > 0;
+                if (!$auto) {
+                    return 'manual';
+                }
+                $level = 'auto';
+            }
+        }
+
+        return $level;
+    }
+
     /** Чи є IP у таблиці (будь-який запис, що її покриває і ще діє). */
     public function contains(string $ip): bool
     {

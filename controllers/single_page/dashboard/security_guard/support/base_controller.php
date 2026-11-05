@@ -33,25 +33,18 @@ abstract class BaseController extends DashboardPageController
     /** @var Settings|null */
     private $settingsObject;
 
-    /** @var array{ip: string, bot: string}|null бан бота, що чекає підтвердження */
+    /** @var array{ip: string, bot: string, duration: string, reason: string}|null бан бота, що чекає підтвердження */
     protected $pendingBotBan;
 
     public function on_start()
     {
         parent::on_start();
-        // Версія = час зміни файлу: статику віддають з кешем на рік, а після
-        // деплою браузер має взяти нову.
-        $this->addHeaderItem('<link rel="stylesheet" href="' . h(self::assetUrl('css/security-guard.css')) . '">');
-        $this->addFooterItem('<script src="' . h(self::assetUrl('js/security-guard.js')) . '"></script>');
-    }
-
-    public static function assetUrl(string $rel): string
-    {
-        $dir = dirname(__DIR__, 5);
-        $v = @filemtime($dir . '/' . $rel) ?: 0;
-        $base = defined('REL_DIR_PACKAGES') ? REL_DIR_PACKAGES : '/packages';
-
-        return $base . '/' . self::PKG . '/' . $rel . '?v=' . $v;
+        // Додатковий захист: лише адміністратори, навіть якщо права сторінки послаблять.
+        if (!Access::isAdministrator()) {
+            return $this->app->make(ResponseFactoryInterface::class)->forbidden($this->request->getUri());
+        }
+        $this->addHeaderItem('<link rel="stylesheet" href="' . h(Assets::url('css/security-guard.css')) . '">');
+        $this->addFooterItem('<script src="' . h(Assets::url('js/security-guard.js')) . '"></script>');
     }
 
     public function on_before_render()
@@ -124,12 +117,12 @@ abstract class BaseController extends DashboardPageController
     protected function isValidPost(string $action): bool
     {
         if (!$this->request->isMethod('POST')) {
-            $this->flash('error', t('This action requires a form submission.'));
+            $this->notify('error', t('This action requires a form submission.'));
 
             return false;
         }
         if (!$this->token->validate($action)) {
-            $this->flash('error', $this->token->getErrorMessage());
+            $this->notify('error', $this->token->getErrorMessage());
 
             return false;
         }
@@ -189,9 +182,36 @@ abstract class BaseController extends DashboardPageController
         return is_string($v) ? mb_substr(trim($v), 0, $max) : '';
     }
 
+    /**
+     * Flash-повідомлення: однакові за типом (success/error) за один запит
+     * об'єднуються, а не перезаписують одне одного (Concrete показує лише останнє).
+     * Не public — щоб не стати дією за URL.
+     */
+    protected function notify(string $key, string $value): void
+    {
+        try {
+            $bag = $this->app->make('session')->getFlashBag();
+            $all = $bag->peek('page_message');
+            foreach ($all as $i => $m) {
+                if (($m[0] ?? '') === $key && empty($m[2])) {
+                    $all[$i][1] = rtrim((string) $m[1]) . "\n" . $value;
+                    $bag->set('page_message', $all);
+
+                    return;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+        $this->flash($key, $value);
+    }
+
+    /** Номер сторінки з GET; нечислові й абсурдні значення — у межах [1, 100000]. */
     protected function currentPage(): int
     {
-        return max(1, (int) $this->request->query->get('page', 1));
+        $raw = $this->request->query->get('page', 1);
+        $page = is_scalar($raw) && preg_match('/^\d{1,6}$/', (string) $raw) ? (int) $raw : 1;
+
+        return max(1, min(100000, $page));
     }
 
     /**
@@ -219,17 +239,17 @@ abstract class BaseController extends DashboardPageController
     {
         $ip = trim($ip);
         if (!filter_var($ip, FILTER_VALIDATE_IP)) {
-            $this->flash('error', t('"%s" is not a valid IP address.', $ip));
+            $this->notify('error', t('"%s" is not a valid IP address.', $ip));
 
             return false;
         }
         if (in_array($ip, $this->clientIps()['all'], true)) {
-            $this->flash('error', t('You cannot block your own IP address (%s).', $ip));
+            $this->notify('error', t('You cannot block your own IP address (%s).', $ip));
 
             return false;
         }
         if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_RES_RANGE) === false) {
-            $this->flash('error', t('Loopback and reserved addresses cannot be blocked.'));
+            $this->notify('error', t('Loopback and reserved addresses cannot be blocked.'));
 
             return false;
         }
@@ -248,22 +268,22 @@ abstract class BaseController extends DashboardPageController
             return false;
         }, false, '');
         if ($whitelisted) {
-            $this->flash('error', t('%s is in the whitelist. Remove it from the whitelist first.', $ip));
+            $this->notify('error', t('%s is in the whitelist. Remove it from the whitelist first.', $ip));
 
             return false;
         }
         // Пошуковий бот: бан прибирає сайт із пошуку — лише з явним підтвердженням.
         $bot = $this->botName($ip);
         if ($bot !== null && !$this->request->request->get('confirm_bot')) {
-            $this->pendingBotBan = ['ip' => $ip, 'bot' => $bot];
-            $this->flash('error', t('%s belongs to the search engine crawler %s. Confirm the ban explicitly below.', $ip, $bot));
+            $this->pendingBotBan = ['ip' => $ip, 'bot' => $bot, 'duration' => $duration, 'reason' => $this->postString('reason', 40)];
+            $this->notify('error', t('%s belongs to the search engine crawler %s. Confirm the ban explicitly below.', $ip, $bot));
 
             return false;
         }
         $seconds = null;
         if ($duration !== 'escalation' && $duration !== '') {
             if (!preg_match('/^\d{1,9}$/', $duration)) {
-                $this->flash('error', t('Invalid block duration.'));
+                $this->notify('error', t('Invalid block duration.'));
 
                 return false;
             }
@@ -275,11 +295,11 @@ abstract class BaseController extends DashboardPageController
             return true;
         }, false, t('Blocks'));
         if ($ok) {
-            $this->flash('success', $seconds === 0
+            $this->notify('success', $seconds === 0
                 ? t('%s is blocked permanently.', $ip)
                 : t('%s is blocked.', $ip));
         } else {
-            $this->flash('error', t('Could not block %s.', $ip));
+            $this->notify('error', t('Could not block %s.', $ip));
         }
 
         return (bool) $ok;
@@ -334,9 +354,47 @@ abstract class BaseController extends DashboardPageController
         $url = (string) $this->app->make(ResolverManagerInterface::class)->resolve(['/dashboard/security_guard/blocks']);
 
         return $this->app->make(ResponseFactoryInterface::class)->redirect(
-            $url . '?' . http_build_query(['ban_ip' => $this->pendingBotBan['ip'], 'bot' => $this->pendingBotBan['bot']]),
+            $url . '?' . http_build_query(array_filter([
+                'ban_ip' => $this->pendingBotBan['ip'],
+                'duration' => $this->pendingBotBan['duration'] ?? '',
+                'reason' => $this->pendingBotBan['reason'] ?? '',
+            ], 'strlen')),
             302
         );
+    }
+
+    /** @return object конфіг пакета (namespace security_guard) */
+    protected function packageConfig()
+    {
+        return $this->app->make(\Concrete\Core\Package\PackageService::class)->getClass(self::PKG)->getConfig();
+    }
+
+    /** Збережений перелік джерел логів (без обходу файлової системи). */
+    protected function logSourcesCache(): array
+    {
+        $c = $this->safe(function () {
+            return LogPaths::cached($this->packageConfig());
+        }, null, '');
+        if (!is_array($c)) {
+            return ['at' => 0, 'sources' => []];
+        }
+        // Навіть зі збереженого — лише файли всередині акаунта.
+        $c['sources'] = LogPaths::filter((array) ($c['sources'] ?? []), LogPaths::root((string) $this->request->getHost()));
+
+        return $c;
+    }
+
+    /** Шукає джерела логів заново (кнопка «Оновити перелік» або після збереження налаштувань). */
+    protected function refreshLogSources(): array
+    {
+        $found = (array) $this->safe(function () {
+            return $this->service(LogIngestInterface::class)->discoverSources();
+        }, [], t('Hosting log sources'));
+        $sources = LogPaths::filter($found, LogPaths::root((string) $this->request->getHost()));
+
+        return (array) $this->safe(function () use ($sources) {
+            return LogPaths::store($this->packageConfig(), $sources);
+        }, ['at' => time(), 'sources' => $sources], '');
     }
 
     protected function runIngest(): void
@@ -352,7 +410,7 @@ abstract class BaseController extends DashboardPageController
             return $this->service(LogIngestInterface::class)->ingest($budget);
         }, null, t('Hosting log import'));
         if (!is_array($result)) {
-            $this->flash('error', t('Could not read the hosting logs.') . ($this->serviceErrors ? ' ' . implode(' ', $this->serviceErrors) : ''));
+            $this->notify('error', t('Could not read the hosting logs.') . ($this->serviceErrors ? ' ' . implode(' ', $this->serviceErrors) : ''));
 
             return;
         }
@@ -366,11 +424,11 @@ abstract class BaseController extends DashboardPageController
         }
         $errors = array_slice(array_map('strval', (array) ($result['errors'] ?? [])), 0, 5);
         if ($errors) {
-            $this->flash('error', t('Some log files could not be read:') . ' ' . implode('; ', $errors));
+            $this->notify('error', t('Some log files could not be read:') . ' ' . implode('; ', $errors));
         }
         // Нічого не прочитано через помилку — «успіх» лише заплутав би.
         if (!$errors || $files > 0) {
-            $this->flash('success', $msg);
+            $this->notify('success', $msg);
         }
     }
 

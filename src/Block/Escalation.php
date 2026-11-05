@@ -8,8 +8,9 @@ namespace PasichDev\SecurityGuard\Block;
 /**
  * Ескалація банів: перший бан — block_duration, далі кроки з налаштування
  * escalation (1 год → 24 год → 7 днів → 30 днів), не далі останнього кроку.
- * «Повторне» порушення — якщо попередній бан ще діє або закінчився не
- * раніше ніж DECAY секунд тому; інакше рахунок починається спочатку.
+ * «Повторне» порушення — лише якщо попередній бан уже ЗАКІНЧИВСЯ, і не
+ * раніше ніж DECAY секунд тому; порушення під час чинного бану рівень не
+ * підвищують; давнє — рахунок починається спочатку.
  */
 final class Escalation
 {
@@ -43,9 +44,13 @@ final class Escalation
         $level = 0;
         if ($previous !== null) {
             $prevUntil = (int) ($previous['blockedUntil'] ?? 0);
-            $recent = !empty($previous['permanent']) || $prevUntil >= $now - $decay;
-            if ($recent) {
-                $level = (int) ($previous['escalationLevel'] ?? 0) + 1;
+            $prevLevel = (int) ($previous['escalationLevel'] ?? 0);
+            if (!empty($previous['permanent']) || $prevUntil > $now) {
+                // Бан ще діє: повторне порушення (паралельні запити, чужі <img>) не ескалює.
+                $level = $prevLevel;
+            } elseif ($prevUntil >= $now - $decay) {
+                // Попередній бан ЗАКІНЧИВСЯ недавно, а IP знову порушує — наступний крок.
+                $level = $prevLevel + 1;
             }
         }
         $level = min(max(0, $level), count($steps) - 1);

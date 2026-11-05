@@ -29,6 +29,8 @@ final class IngestEngine
     /** Скільки днів перераховувати за один прохід по файлах (обмежує пам'ять). */
     public const GROUP_DAYS = 7;
     private const CHECK_EVERY = 2000;
+    /** Ліміт записів у пам'яті дедуплікації перекриттів за одну групу днів. */
+    public const SEEN_MAX = 300000;
 
     /** @var DateTimeZone */
     private $tz;
@@ -52,6 +54,18 @@ final class IngestEngine
     private $hostWafSizes = [];
     /** @var array стан детектора, якщо сховища немає (тести) */
     private $memoryHostWafState = [];
+    /** @var DayIndexStoreInterface|null */
+    private $indexStore;
+    /** @var array покажчик днів у файлах (див. DayIndexStoreInterface) */
+    private $index = [];
+    /** @var float */
+    private $deadline = INF;
+    /** @var callable(): float годинник для лімітів часу (у тестах підмінюється) */
+    private $clockFn;
+    /** @var int як часто перевіряти час, рядків */
+    private $checkEvery = self::CHECK_EVERY;
+    /** @var int ліміт ключів дедуплікації (у тестах менший) */
+    private $seenMax = self::SEEN_MAX;
 
     public function __construct(
         DateTimeZone $tz,
@@ -61,8 +75,13 @@ final class IngestEngine
         PendingDaysStoreInterface $pending,
         DayWriterInterface $writer,
         ?CrawlerVerifier $crawlers = null,
-        ?HostWafStateStoreInterface $hostWafState = null
+        ?HostWafStateStoreInterface $hostWafState = null,
+        ?DayIndexStoreInterface $indexStore = null
     ) {
+        $this->indexStore = $indexStore;
+        $this->clockFn = static function (): float {
+            return microtime(true);
+        };
         $this->hostWafState = $hostWafState;
         $this->crawlers = $crawlers ?? new CrawlerVerifier();
         $this->tz = $tz;
@@ -88,6 +107,13 @@ final class IngestEngine
         if (isset($options['deadlineAt'])) {
             $deadline = (float) $options['deadlineAt'];
         }
+        $this->deadline = $deadline;
+        $this->clockFn = isset($options['clock']) && is_callable($options['clock']) ? $options['clock'] : static function (): float {
+            return microtime(true);
+        };
+        $this->checkEvery = max(1, (int) ($options['checkEvery'] ?? self::CHECK_EVERY));
+        $this->seenMax = max(1, (int) ($options['seenMax'] ?? self::SEEN_MAX));
+        $clock = $this->clockFn;
         $now = (int) ($options['now'] ?? time());
         $rebuild = !empty($options['rebuild']);
         $minDay = '';
@@ -96,7 +122,7 @@ final class IngestEngine
                 ->modify('-' . ((int) $options['days'] - 1) . ' days')->format('Y-m-d');
         }
 
-        $result = ['files' => 0, 'lines' => 0, 'days' => [], 'finished' => false, 'errors' => [], 'pending' => 0, 'deduplicated' => 0, 'malformed' => 0, 'hostWafSizes' => []];
+        $result = ['files' => 0, 'lines' => 0, 'days' => [], 'finished' => false, 'errors' => [], 'pending' => 0, 'deduplicated' => 0, 'malformed' => 0, 'hostWafSizes' => [], 'scanned' => 0, 'dedupOverflow' => false];
         $stored = $this->cursors->load();
         $pending = $rebuild ? [] : array_fill_keys($this->pending->get(), true);
 
@@ -106,11 +132,14 @@ final class IngestEngine
         $hwPrevState = $rebuild ? [] : $this->loadHostWafState();
         $detector = new HostWafDetector($hwPrevState);
         $hwBefore = $detector->confirmed();
+        $oldIndex = $rebuild ? [] : ($this->indexStore !== null ? $this->indexStore->getDayIndex() : $this->index);
+        $index = [];
 
         // ---- Прохід A
         $states = [];
         $newDays = [];
         $cut = false;
+        $cutB = false;
         foreach ($sources as $path => $meta) {
             ++$result['files'];
             $size = (int) $meta['size'];
@@ -127,11 +156,15 @@ final class IngestEngine
             $hashNow = $first === '' ? '' : sha1($first);
             if ($hashNow === '') {
                 $states[$path] = self::cursorRow($path, '', 0, 0, $size, 0, true, $now) + ['stream' => $meta['stream']];
+                $index[$path] = ['from0' => true, 'days' => []];
                 continue;
             }
             $reset = $rebuild || $cur === null || $hash !== $hashNow || $size < (int) $cur['size'];
             if (!$reset && $size === (int) $cur['size'] && !empty($cur['completed'])) {
                 $states[$path] = self::cursorRow($path, $hash, $min, $max, $size, (int) $cur['position'], true, $now) + ['stream' => $meta['stream']];
+                if (isset($oldIndex[$path])) {
+                    $index[$path] = $oldIndex[$path];
+                }
                 continue;
             }
             $start = $reset ? 0 : (int) $cur['position'];
@@ -139,6 +172,8 @@ final class IngestEngine
                 $min = 0;
                 $max = 0;
             }
+            // Покажчик продовжується лише якщо він будувався з початку файлу.
+            $fileIdx = $reset ? ['from0' => true, 'days' => []] : ($oldIndex[$path] ?? ['from0' => false, 'days' => []]);
             $completed = true;
             $position = $start;
             try {
@@ -147,15 +182,20 @@ final class IngestEngine
                     $reader->seek(0);
                     $min = 0;
                     $max = 0;
+                    $fileIdx = ['from0' => true, 'days' => []];
                 }
                 $n = 0;
+                $off = $reader->tell();
                 while (($line = $reader->next()) !== null) {
+                    $end = $reader->tell();
                     $ts = LogParser::timestamp($line);
                     if ($ts === null) {
                         ++$result['malformed'];
                     } else {
                         ++$result['lines'];
-                        $newDays[$this->clock->dayOf($ts)] = true;
+                        $lineDay = $this->clock->dayOf($ts);
+                        $newDays[$lineDay] = true;
+                        self::indexLine($fileIdx, $lineDay, $off, $end);
                         if ($hwAuto) {
                             $detector->observeLine($line);
                         }
@@ -166,7 +206,8 @@ final class IngestEngine
                             $max = $ts;
                         }
                     }
-                    if (++$n % self::CHECK_EVERY === 0 && microtime(true) > $deadline) {
+                    $off = $end;
+                    if (++$n % $this->checkEvery === 0 && $clock() > $deadline) {
                         $completed = false;
                         $cut = true;
                         break;
@@ -179,7 +220,15 @@ final class IngestEngine
                 $completed = false;
             }
             $states[$path] = self::cursorRow($path, $hashNow, $min, $max, $size, $position, $completed, $now) + ['stream' => $meta['stream']];
+            $index[$path] = $fileIdx;
         }
+        // Файли, не відвідані через обрив, зберігають старий покажчик.
+        foreach ($states as $path => $_) {
+            if (!isset($index[$path]) && isset($oldIndex[$path])) {
+                $index[$path] = $oldIndex[$path];
+            }
+        }
+        $this->index = $index;
 
         if ($hwAuto && !$rebuild && $detector->confirmed() !== $hwBefore) {
             // Знайдено новий відбиток сторінки 403 хостингу: дні, пораховані раніше
@@ -193,12 +242,13 @@ final class IngestEngine
                 }
             }
         }
+        // Дні з нових рядків ставляться в чергу завжди — навіть поза --days: курсори вже
+        // пройшли ці рядки, і без черги дні лишились би непорахованими назавжди.
         foreach (array_keys($newDays) as $day) {
-            if ($minDay === '' || strcmp((string) $day, $minDay) >= 0) {
-                $pending[(string) $day] = true;
-            }
+            $pending[(string) $day] = true;
         }
         $this->pending->set(self::sortedDays($pending));
+        $this->saveIndex();
         if ($hwAuto) {
             $this->saveHostWafState($detector->state());
         }
@@ -210,8 +260,12 @@ final class IngestEngine
             return $r;
         }, $states));
 
-        // ---- Прохід B
-        $queue = self::sortedDays($pending);
+        // ---- Прохід B (з --days — лише дні вікна; старіші лишаються в черзі)
+        $queue = array_values(array_filter(self::sortedDays($pending), static function (string $d) use ($minDay): bool {
+            return $minDay === '' || strcmp($d, $minDay) >= 0;
+        }));
+        // З лімітом часу — по одному дню: обірваний день не пишеться, а лише повторюється.
+        $groupDays = is_finite($deadline) ? 1 : self::GROUP_DAYS;
         $ranges = [];
         foreach ($states as $path => $st) {
             [, $min, $max] = self::decodeFingerprint($st['fingerprint']);
@@ -228,15 +282,20 @@ final class IngestEngine
         // Якщо прохід A обірвано, частина файлів не має відомого діапазону —
         // перерахунок відкладаємо до запуску, який дочитає всі файли.
         while ($queue && !$cut) {
-            if (microtime(true) > $deadline) {
+            if ($clock() > $deadline) {
                 break;
             }
-            $group = array_splice($queue, 0, self::GROUP_DAYS);
+            $group = array_splice($queue, 0, $groupDays);
             try {
                 $rows = $this->computeDays($group, $ranges, $result);
+            } catch (DeadlineException $e) {
+                $cutB = true;
+                break;
             } catch (Throwable $e) {
                 $result['errors'][] = $e->getMessage();
                 break;
+            } finally {
+                $this->saveIndex();
             }
             foreach ($group as $day) {
                 if (isset($rows[$day])) {
@@ -249,7 +308,10 @@ final class IngestEngine
         }
 
         $result['pending'] = count($pending);
-        $result['finished'] = !$cut && !$pending && !$result['errors'];
+        $windowLeft = array_filter(array_keys($pending), static function ($d) use ($minDay): bool {
+            return $minDay === '' || strcmp((string) $d, $minDay) >= 0;
+        });
+        $result['finished'] = !$cut && !$cutB && !$windowLeft && !$result['errors'];
 
         return $result;
     }
@@ -293,38 +355,109 @@ final class IngestEngine
         }
 
         $seen = [];
+        $seenFull = false;
         $fi = 0;
+        $n = 0;
         foreach ($files as $path => $r) {
             ++$fi;
             $win = $windows[$path] ?? [];
+            $idx = $this->index[$path] ?? null;
+            $useIdx = is_array($idx) && !empty($idx['from0']) && $r['max'] !== PHP_INT_MAX;
+            $readFrom = 0;
+            $readTo = PHP_INT_MAX;
+            if ($useIdx) {
+                $lo = PHP_INT_MAX;
+                $hi = 0;
+                foreach ($days as $d) {
+                    if (isset($idx['days'][$d])) {
+                        $lo = min($lo, (int) $idx['days'][$d][0]);
+                        $hi = max($hi, (int) $idx['days'][$d][1]);
+                    }
+                }
+                if ($lo === PHP_INT_MAX) {
+                    continue; // у файлі немає рядків цих днів
+                }
+                $readFrom = $lo;
+                $readTo = $hi;
+            }
+            // Повне читання файлу без покажчика — заодно будуємо покажчик.
+            $build = !$useIdx && $r['max'] !== PHP_INT_MAX ? ['from0' => true, 'days' => []] : null;
             $reader = new LogReader($path);
-            while (($line = $reader->next()) !== null) {
+            if ($readFrom > 0) {
+                $reader->seek($readFrom);
+            }
+            $off = $reader->tell();
+            $line = '';
+            while ($off < $readTo && ($line = $reader->next()) !== null) {
+                $end = $reader->tell();
+                if (++$n % $this->checkEvery === 0 && ($this->clockFn)() > $this->deadline) {
+                    $reader->close();
+                    throw new DeadlineException('Time budget exhausted');
+                }
+                $stats['scanned'] = ($stats['scanned'] ?? 0) + 1;
                 $ts = LogParser::timestamp($line);
+                if ($ts !== null && $build !== null) {
+                    self::indexLine($build, $this->clock->dayOf($ts), $off, $end);
+                }
+                $off = $end;
                 if ($ts === null || $ts < $from - 86400 || $ts > $to + 86400 || !$agg->wants($ts)) {
                     continue;
                 }
-                if ($win && self::inWindows($ts, $win)) {
-                    $key = $r['stream'] . "\0" . md5(rtrim($line, "\r\n"), true);
+                $parsed = LogParser::parse($line);
+                if ($parsed === null) {
+                    continue;
+                }
+                if ($win && !$seenFull && self::inWindows($ts, $win)) {
+                    // Той самий запит у двох файлах одного потоку (живий лог і архів, або
+                    // Apache- і nginx-архів з різним форматом рядка) — ключ з полів, а не з рядка.
+                    $key = md5($r['stream'] . "\0" . $ts . "\0" . $parsed['ip'] . "\0" . $parsed['method'] . "\0" . $parsed['rawUri'], true);
                     $counts = $seen[$key] ?? [];
                     $c = ($counts[$fi] ?? 0) + 1;
                     $counts[$fi] = $c;
                     $seen[$key] = $counts;
                     unset($counts[$fi]);
+                    if (count($seen) >= $this->seenMax) {
+                        $seenFull = true;
+                        $stats['dedupOverflow'] = true;
+                    }
                     if ($counts && $c <= max($counts)) {
-                        // Такий самий рядок уже врахований з іншого файлу цього потоку.
                         $stats['deduplicated'] = ($stats['deduplicated'] ?? 0) + 1;
+                        $agg->addReportOnly($parsed);
                         continue;
                     }
                 }
-                $parsed = LogParser::parse($line);
-                if ($parsed !== null) {
-                    $agg->add($parsed);
-                }
+                $agg->add($parsed);
             }
             $reader->close();
+            if ($build !== null && $line === null) {
+                $this->index[$path] = $build;
+            }
         }
 
         return $agg->finish();
+    }
+
+    /** Позначає в покажчику файлу, що рядок дня $day займає байти [$start, $end). */
+    private static function indexLine(array &$fileIdx, string $day, int $start, int $end): void
+    {
+        if (!isset($fileIdx['days'][$day])) {
+            $fileIdx['days'][$day] = [$start, $end];
+
+            return;
+        }
+        if ($start < $fileIdx['days'][$day][0]) {
+            $fileIdx['days'][$day][0] = $start;
+        }
+        if ($end > $fileIdx['days'][$day][1]) {
+            $fileIdx['days'][$day][1] = $end;
+        }
+    }
+
+    private function saveIndex(): void
+    {
+        if ($this->indexStore !== null) {
+            $this->indexStore->setDayIndex($this->index);
+        }
     }
 
     /** Розміри сторінки 403 хостингу, з якими рахує computeDays() (для прямого виклику). */

@@ -33,7 +33,7 @@ final class HoneypotRepository implements HoneypotRepositoryInterface
     {
         $this->db()->insert('SecurityGuardHoneypotHits', [
             'ip' => IpRange::normalize($ip) ?: Text::cut($ip, 45),
-            'url' => Text::cut($url, 500),
+            'url' => Text::url($url, 500),
             'userAgent' => Text::cut($userAgent, 255),
             'createdAt' => time(),
         ]);

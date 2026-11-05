@@ -31,6 +31,8 @@ final class Period
     public $toTs;
     /** @var DateTimeZone */
     public $tz;
+    /** @var string повідомлення, якщо введений період довелося виправити */
+    public $notice = '';
 
     private function __construct()
     {
@@ -71,6 +73,11 @@ final class Period
                 }
                 if ($end > $today) {
                     $end = $today;
+                    $p->notice = t('The selected period ends in the future; data is shown up to today.');
+                }
+                if ($start > $today) {
+                    $start = $today;
+                    $p->notice = t('The selected period is entirely in the future; showing today instead.');
                 }
                 $maxStart = $end->modify('-' . (self::MAX_DAYS - 1) . ' days');
                 if ($start < $maxStart) {

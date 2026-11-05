@@ -8,6 +8,9 @@ namespace PasichDev\SecurityGuard\Logs;
 /** Класифікація рядка логу як атаки. */
 interface AttackClassifierInterface
 {
-    /** @return array{rule:string, category:string}|null */
+    /**
+     * strength: 'strong' — атака; 'weak' — лише схоже на неї (звичайний текст); відсутній ключ = strong.
+     * @return array{rule:string, category:string, strength?:string}|null
+     */
     public function classify(string $method, string $uri, string $userAgent): ?array;
 }

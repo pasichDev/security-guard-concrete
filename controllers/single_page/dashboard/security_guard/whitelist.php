@@ -50,7 +50,7 @@ class Whitelist extends BaseController
         $range = $this->postString('range', 64);
         $error = IpRange::validate($range);
         if ($error !== null) {
-            $this->flash('error', $error);
+            $this->notify('error', $error);
 
             return $this->back();
         }
@@ -70,7 +70,7 @@ class Whitelist extends BaseController
             return false;
         }, false, '');
         if ($exists) {
-            $this->flash('error', t('%s is already in the whitelist.', $range));
+            $this->notify('error', t('%s is already in the whitelist.', $range));
 
             return $this->back();
         }
@@ -81,9 +81,9 @@ class Whitelist extends BaseController
         }, false, t('Whitelist'));
         if ($ok) {
             $this->rebuildState();
-            $this->flash('success', t('%s is added to the whitelist.', $range));
+            $this->notify('success', t('%s is added to the whitelist.', $range));
         } else {
-            $this->flash('error', t('Could not add %s to the whitelist.', $range));
+            $this->notify('error', t('Could not add %s to the whitelist.', $range));
         }
 
         return $this->back();
@@ -105,7 +105,7 @@ class Whitelist extends BaseController
         }, false, t('Whitelist'));
         if ($ok) {
             $this->rebuildState();
-            $this->flash('success', t('The entry is removed from the whitelist.'));
+            $this->notify('success', t('The entry is removed from the whitelist.'));
         }
 
         return $this->back();

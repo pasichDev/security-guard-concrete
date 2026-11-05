@@ -28,3 +28,6 @@ $presets = ['7' => t('7 days'), '30' => t('30 days'), '90' => t('90 days')];
     </label>
     <button type="submit" class="btn btn-sm <?= $period->key === 'custom' ? 'btn-primary' : 'btn-outline-secondary' ?>"><?= h(t('Show')) ?></button>
 </form>
+<?php if ((string) ($period->notice ?? '') !== '') { ?>
+    <div class="alert alert-info py-2 mt-2 mb-0 sg-period-notice"><?= h((string) $period->notice) ?></div>
+<?php } ?>

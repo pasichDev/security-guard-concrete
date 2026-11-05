@@ -59,7 +59,7 @@ final class ApcuCounterStore implements CounterStore
         apcu_delete($this->prefix . $key);
     }
 
-    public function purgeExpired(int $limit = 5000): int
+    public function purgeExpired(int $limit = 5000, float $budget = 2.0): int
     {
         return 0; // APCu сам прибирає прострочене
     }

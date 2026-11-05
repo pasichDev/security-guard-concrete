@@ -13,6 +13,9 @@ namespace PasichDev\SecurityGuard\State;
  */
 final class FileCounterStore implements CounterStore
 {
+    /** Стеля кількості файлів лічильників. */
+    public const MAX_FILES = 50000;
+
     /** @var string */
     private $dir;
 
@@ -85,31 +88,61 @@ final class FileCounterStore implements CounterStore
         @unlink($this->file($key));
     }
 
-    public function purgeExpired(int $limit = 5000): int
+    /**
+     * Прибирання за mtime (= час закінчення). Обхід відсортований і
+     * відновлюваний: курсор у файлі .purge-cursor, ліміт часу $budget секунд.
+     * Якщо файлів більше MAX_FILES — видаляються й живі (лічильники — м'який
+     * стан, втрата частини безпечна), щоб тека не росла без меж.
+     */
+    public function purgeExpired(int $limit = 5000, float $budget = 2.0): int
     {
-        $now = $this->now();
-        $removed = 0;
-        $seen = 0;
-        $handle = @opendir($this->dir);
-        if ($handle === false) {
+        $names = @scandir($this->dir);
+        if ($names === false) {
             return 0;
         }
-        while (($name = readdir($handle)) !== false) {
-            if (substr($name, -4) !== '.cnt') {
+        $names = array_values(array_filter($names, static function (string $n): bool {
+            return substr($n, -4) === '.cnt';
+        }));
+        $total = count($names);
+        $over = max(0, $total - self::MAX_FILES);
+        $cursorFile = $this->dir . '/.purge-cursor';
+        $cursor = (string) @file_get_contents($cursorFile);
+        $now = $this->now();
+        $deadline = microtime(true) + max(0.05, $budget);
+        $removed = 0;
+        $processed = 0;
+        $last = '';
+        foreach ($names as $name) {
+            if ($over === 0 && $cursor !== '' && strcmp($name, $cursor) <= 0) {
                 continue;
-            }
-            if (++$seen > $limit) {
-                break;
             }
             $path = $this->dir . '/' . $name;
             $mtime = @filemtime($path);
-            if ($mtime !== false && $mtime <= $now && @unlink($path)) {
-                $removed++;
+            if (($mtime !== false && $mtime <= $now) || $over > 0) {
+                if (@unlink($path)) {
+                    $removed++;
+                    $over = max(0, $over - 1);
+                }
+            }
+            $last = $name;
+            if (++$processed >= max(1, $limit) || microtime(true) > $deadline) {
+                @file_put_contents($cursorFile, $last);
+
+                return $removed;
             }
         }
-        closedir($handle);
+        @unlink($cursorFile); // дійшли до кінця — наступний прохід із початку
 
         return $removed;
+    }
+
+    public function count(): int
+    {
+        $names = @scandir($this->dir);
+
+        return $names === false ? 0 : count(array_filter($names, static function (string $n): bool {
+            return substr($n, -4) === '.cnt';
+        }));
     }
 
     public function name(): string

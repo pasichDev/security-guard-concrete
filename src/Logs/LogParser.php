@@ -18,7 +18,8 @@ final class LogParser
         'Jul' => 7, 'Aug' => 8, 'Sep' => 9, 'Oct' => 10, 'Nov' => 11, 'Dec' => 12,
     ];
 
-    private const LINE_RE = '/^(\S+) \S+ \S+ \[[^\]]+\] "((?:[^"\\\\]|\\\\.)*)" (\d{3}|-) (\d+|-)(?: "((?:[^"\\\\]|\\\\.)*)" "((?:[^"\\\\]|\\\\.)*)")?/';
+    // authuser може містити пробіли (HTTP Basic з ім'ям на кшталт «John Doe»), тому він лінивий.
+    private const LINE_RE = '/^(\S+) \S+ .*? \[[^\]]+\] "((?:[^"\\\\]|\\\\.)*)" (\d{3}|-) (\d+|-)(?: "((?:[^"\\\\]|\\\\.)*)" "((?:[^"\\\\]|\\\\.)*)")?/';
 
     /** @var array<string, int> кеш "дата:година зсув" => unix-час початку години */
     private static $hourCache = [];
@@ -29,7 +30,7 @@ final class LogParser
     public static function timestamp(string $line): ?int
     {
         $p = strpos($line, '[');
-        if ($p === false || $p > 64 || strlen($line) < $p + 28 || $line[$p + 27] !== ']') {
+        if ($p === false || $p > 300 || strlen($line) < $p + 28 || $line[$p + 27] !== ']') {
             return null;
         }
         // 31/Oct/2026:22:18:03 +0200
@@ -47,7 +48,7 @@ final class LogParser
         }
         $mi = substr($line, $p + 16, 2);
         $se = substr($line, $p + 19, 2);
-        if (!ctype_digit($mi) || !ctype_digit($se)) {
+        if (!ctype_digit($mi) || !ctype_digit($se) || (int) $mi > 59 || (int) $se > 60) {
             return null;
         }
 
@@ -91,12 +92,19 @@ final class LogParser
 
         $out = [
             'ip' => $ip, 'ts' => $ts, 'method' => '', 'uri' => '', 'path' => '',
-            'status' => 0, 'bytes' => 0, 'referer' => '', 'ua' => '', 'partial' => true,
+            'status' => 0, 'bytes' => 0, 'referer' => '', 'ua' => '', 'partial' => true, 'rawUri' => '',
         ];
         if (!preg_match(self::LINE_RE, $line, $m)) {
             return $out;
         }
-        $req = $m[2];
+        // Apache екранує лапки й керівні символи (\" та \xhh) у запиті, referer і UA.
+        $rawReq = $m[2];
+        $req = strpos($rawReq, '\\') !== false ? stripcslashes($rawReq) : $rawReq;
+        if ($rawReq !== '' && $rawReq !== '-') {
+            // Сирий URI (як у логу) — для класифікації «як у звіті», що рахувала саме його.
+            $rawParts = explode(' ', $rawReq, 3);
+            $out['rawUri'] = count($rawParts) >= 2 ? $rawParts[1] : $rawParts[0];
+        }
         if ($req !== '' && $req !== '-') {
             $parts = explode(' ', $req, 3);
             if (count($parts) >= 2) {
@@ -109,7 +117,7 @@ final class LogParser
         $out['path'] = self::pathOf($out['uri']);
         $out['status'] = $m[3] === '-' ? 0 : (int) $m[3];
         $out['bytes'] = $m[4] === '-' ? 0 : (int) $m[4];
-        $out['referer'] = isset($m[5]) && $m[5] !== '-' ? $m[5] : '';
+        $out['referer'] = isset($m[5]) && $m[5] !== '-' ? stripcslashes($m[5]) : '';
         $out['ua'] = isset($m[6]) && $m[6] !== '-' ? stripcslashes($m[6]) : '';
         $out['partial'] = false;
 
@@ -156,7 +164,8 @@ final class LogParser
             return null;
         }
         $mon = self::MONTHS[$m[2]] ?? null;
-        if ($mon === null) {
+        // gmmktime мовчки «нормалізує» 31/Feb у 3/Mar — такі дати відкидаємо.
+        if ($mon === null || !checkdate($mon, (int) $m[1], (int) $m[3]) || (int) $m[4] > 23 || (int) $m[6] > 14 || (int) $m[7] > 59) {
             return null;
         }
         $offset = ((int) $m[6] * 3600 + (int) $m[7] * 60) * ($m[5] === '-' ? -1 : 1);

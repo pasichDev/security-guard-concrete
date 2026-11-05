@@ -8,15 +8,23 @@ namespace PasichDev\SecurityGuard\Waf;
 use Concrete\Core\Application\Application;
 use Concrete\Core\Database\Connection\Connection;
 use PasichDev\SecurityGuard\Ip\IpRange;
+use PasichDev\SecurityGuard\Logs\CrawlerRanges;
+use PasichDev\SecurityGuard\Logs\IpMatcher;
 use PasichDev\SecurityGuard\Rules\RuleSet;
 use PasichDev\SecurityGuard\State\CounterStore;
+use PasichDev\SecurityGuard\State\StateDir;
 use Throwable;
 
 /**
- * Перевірка пошукових ботів: rDNS (gethostbyaddr) → суфікс домену пошуковика
- * → прямий DNS має повернути ту саму IP. Результат кешується в лічильниках
- * (APCu/файл) і в SecurityGuardBotCache на 24 год, тож DNS-запит — один раз
- * на IP на добу. Збій DNS ніколи не дає «фейк» — лише «не перевірено».
+ * Перевірка пошукових ботів.
+ *
+ * На запиті відвідувача — ЖОДНОГО DNS: кеш у лічильниках → результат
+ * попередньої перевірки в SecurityGuardBotCache (один запит до бази на IP
+ * на годину, лише для UA пошуковика) → опубліковані діапазони IP
+ * (CrawlerRanges::PUBLISHED або оновлені з SecurityGuardBotRanges). Невідома
+ * IP — «не перевірено» (звичайні перевірки, ніколи не «фейк») і стає в чергу.
+ * Черга обробляється з cron (Maintenance) під неблокуючим замком і з лімітом
+ * часу: rDNS → суфікс домену → прямий DNS → SecurityGuardBotCache.
  */
 final class BotVerifier
 {
@@ -27,6 +35,7 @@ final class BotVerifier
 
     private const TTL = 86400;
     private const TTL_UNVERIFIED = 3600;
+    private const QUEUE_MAX_BYTES = 262144;
 
     /** @var Application|null */
     private $app;
@@ -40,12 +49,23 @@ final class BotVerifier
     /** @var callable|null fn(string $host, bool $v6): string[] */
     private $forward;
 
-    public function __construct(?Application $app, CounterStore $counters, ?callable $reverse = null, ?callable $forward = null)
+    /** @var string|null тека черги (null — тека стану) */
+    private $queueDir;
+
+    /** @var array<string, string[]> бот => CIDR із SecurityGuardBotRanges */
+    private $storedRanges;
+
+    /** @var array<string, IpMatcher> */
+    private static $matchers = [];
+
+    public function __construct(?Application $app, CounterStore $counters, ?callable $reverse = null, ?callable $forward = null, ?string $queueDir = null, array $storedRanges = [])
     {
         $this->app = $app;
         $this->counters = $counters;
         $this->reverse = $reverse;
         $this->forward = $forward;
+        $this->queueDir = $queueDir;
+        $this->storedRanges = $storedRanges;
     }
 
     /** Назва бота за UA або null. */
@@ -63,7 +83,11 @@ final class BotVerifier
         return null;
     }
 
-    /** @return array{status: string, name: ?string, host: string} */
+    /**
+     * Рішення для запиту відвідувача, без мережевих запитів.
+     *
+     * @return array{status: string, name: ?string, host: string}
+     */
     public function verify(string $ip, string $userAgent): array
     {
         $name = self::detect($userAgent);
@@ -75,25 +99,101 @@ final class BotVerifier
         if (is_array($cached) && ($cached['name'] ?? null) === $name && isset($cached['status'])) {
             return ['status' => (string) $cached['status'], 'name' => $name, 'host' => (string) ($cached['host'] ?? '')];
         }
-        $fromDb = $this->readDb($ip, $name);
-        if ($fromDb !== null) {
-            $this->counters->set($key, $fromDb + ['name' => $name], self::TTL);
+        $result = null;
+        if ($this->inPublishedRanges($ip, $name)) {
+            $result = ['status' => self::VERIFIED, 'name' => $name, 'host' => ''];
+        } elseif (($row = $this->readDb($ip, $name)) !== null) {
+            $result = $row + ['name' => $name];
+        }
+        if ($result !== null) {
+            $this->counters->set($key, $result, self::TTL);
 
-            return $fromDb + ['name' => $name];
+            return $result;
+        }
+        $result = ['status' => self::UNVERIFIED, 'name' => $name, 'host' => ''];
+        // Негативний кеш на годину: не питаємо базу на кожному запиті цієї IP.
+        $this->counters->set($key, $result, self::TTL_UNVERIFIED);
+        $this->enqueue($ip, $name);
+
+        return $result;
+    }
+
+    /** IP у списку, який пошуковик публікує сам (без евристичних мереж). */
+    public function inPublishedRanges(string $ip, string $name): bool
+    {
+        $list = $this->storedRanges[$name] ?? (CrawlerRanges::PUBLISHED[$name] ?? []);
+        if (!is_array($list) || $list === []) {
+            return false;
+        }
+        $key = $name . ':' . count($list) . ':' . md5(implode(',', array_slice($list, 0, 5)));
+        if (!isset(self::$matchers[$key])) {
+            self::$matchers[$key] = new IpMatcher(array_values(array_map('strval', $list)));
         }
 
-        $suffixes = RuleSet::searchBots()[$name][1];
+        return self::$matchers[$key]->matches(IpRange::normalize($ip));
+    }
+
+    /**
+     * Обробка черги rDNS з cron. Один процес за раз (неблокуючий flock), не
+     * довше $budget секунд і не більше $max IP. Повертає кількість перевірених.
+     */
+    public function processQueue(float $budget = 10.0, int $max = 200): int
+    {
+        $dir = $this->queueDir();
+        $lock = @fopen($dir . '/botqueue.lock', 'c');
+        if ($lock === false) {
+            return 0;
+        }
+        $done = 0;
+        try {
+            if (!flock($lock, LOCK_EX | LOCK_NB)) {
+                return 0; // інша обробка вже йде — ту саму IP двічі не перевіряємо
+            }
+            $file = $dir . '/botqueue.txt';
+            $lines = @file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+            @unlink($file);
+            $deadline = microtime(true) + max(0.1, $budget);
+            $seen = [];
+            $rest = [];
+            foreach ($lines as $line) {
+                [$ip, $name] = array_pad(explode('|', (string) $line, 2), 2, '');
+                $ip = IpRange::normalize($ip);
+                if ($ip === '' || !isset(RuleSet::searchBots()[$name]) || isset($seen[$ip])) {
+                    continue;
+                }
+                $seen[$ip] = true;
+                if ($done >= $max || microtime(true) > $deadline) {
+                    $rest[] = $ip . '|' . $name;
+                    continue;
+                }
+                $this->checkNow($ip, $name);
+                $done++;
+            }
+            if ($rest !== []) {
+                @file_put_contents($file, implode("\n", $rest) . "\n", FILE_APPEND | LOCK_EX);
+            }
+            flock($lock, LOCK_UN);
+        } finally {
+            fclose($lock);
+        }
+
+        return $done;
+    }
+
+    /** Повна перевірка через DNS (лише з cron/CLI). */
+    public function checkNow(string $ip, string $name): string
+    {
+        $suffixes = RuleSet::searchBots()[$name][1] ?? [];
         $host = $this->reverseLookup($ip);
         $forwardIps = ($host !== '' && self::hostMatches($host, $suffixes)) ? $this->forwardLookup($host, strpos($ip, ':') !== false) : [];
         $status = self::evaluate($ip, $suffixes, $host, $forwardIps);
-
         $result = ['status' => $status, 'name' => $name, 'host' => $host];
-        $this->counters->set($key, $result, $status === self::UNVERIFIED ? self::TTL_UNVERIFIED : self::TTL);
+        $this->counters->set('bot:' . $ip, $result, $status === self::UNVERIFIED ? self::TTL_UNVERIFIED : self::TTL);
         if ($status !== self::UNVERIFIED) {
             $this->writeDb($ip, $host, $status === self::VERIFIED, $name);
         }
 
-        return $result;
+        return $status;
     }
 
     /**
@@ -135,6 +235,26 @@ final class BotVerifier
         }
 
         return false;
+    }
+
+    /** Ставить IP у чергу перевірки, не частіше разу на годину для однієї IP. */
+    private function enqueue(string $ip, string $name): void
+    {
+        if (!$this->counters->add('botq:' . $ip, 1, self::TTL_UNVERIFIED)) {
+            return;
+        }
+        $file = $this->queueDir() . '/botqueue.txt';
+        $size = @filesize($file);
+        if ($size !== false && $size > self::QUEUE_MAX_BYTES) {
+            return; // черга переповнена (cron не працює) — не ростемо
+        }
+        // Дописування одного короткого рядка в режимі append — без довгих блокувань.
+        @file_put_contents($file, IpRange::normalize($ip) . '|' . $name . "\n", FILE_APPEND);
+    }
+
+    private function queueDir(): string
+    {
+        return $this->queueDir ?? StateDir::path();
     }
 
     private function reverseLookup(string $ip): string

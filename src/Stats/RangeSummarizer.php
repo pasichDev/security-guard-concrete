@@ -40,12 +40,14 @@ final class RangeSummarizer
         $hours = array_fill(0, 24, 0);
         $hoursAttacks = array_fill(0, 24, 0);
         $topIps = $topAttackIps = $topUrls = $top404 = [];
-        $report = ['attackRequests' => 0, 'loginFailed' => 0];
+        $report = ['totalRequests' => 0, 'blocked403' => 0, 'overload508' => 0, 'attackRequests' => 0, 'loginFailed' => 0];
+        $hwSketch = new CardinalitySketch();
         $verifiedBotRequests = 0;
         $hwSet = [];
         $hwExact = true;
         $hwCats = $hwRules = $hwTopIps = $hwTopUrls = [];
         $botAttackLike = 0;
+        $weakAttackLike = 0;
         $byDay = [];
         $lastUpdate = 0;
 
@@ -81,11 +83,15 @@ final class RangeSummarizer
             if (!empty($hw['ipListTruncated'])) {
                 $hwExact = false;
             }
+            if (isset($hw['ipSketch']) && is_string($hw['ipSketch'])) {
+                $hwSketch->merge(new CardinalitySketch($hw['ipSketch']));
+            }
             self::addMap($hwCats, $hw['categories'] ?? []);
             self::addMap($hwRules, $hw['topRules'] ?? []);
             self::addTop($hwTopIps, $hw['topIps'] ?? [], 'ip');
             self::addTop($hwTopUrls, $hw['topUrls'] ?? [], 'url');
             $botAttackLike += (int) ($b['botAttackLike'] ?? 0);
+            $weakAttackLike += (int) ($b['weakAttackLike'] ?? 0);
             self::addMap($cats, $b['categories'] ?? []);
             self::addMap($rules, $b['rules'] ?? []);
             self::addMap($statuses, $b['statuses'] ?? []);
@@ -106,6 +112,10 @@ final class RangeSummarizer
             self::addTop($top404, $b['top404'] ?? [], 'url');
 
             $r = is_array($b['report'] ?? null) ? $b['report'] : [];
+            // Старі рядки (до v1.2) не мають report.totalRequests/403/508 — тоді беремо колонки.
+            $report['totalRequests'] += (int) ($r['totalRequests'] ?? ($row['totalRequests'] ?? 0));
+            $report['blocked403'] += (int) ($r['blocked403'] ?? ($row['blocked403'] ?? 0));
+            $report['overload508'] += (int) ($r['overload508'] ?? ($row['overload508'] ?? 0));
             $report['attackRequests'] += (int) ($r['attackRequests'] ?? 0);
             $report['loginFailed'] += (int) ($r['loginFailed'] ?? 0);
             foreach ((array) ($r['attackIpList'] ?? []) as $ip) {
@@ -121,7 +131,8 @@ final class RangeSummarizer
         if ($days > 1) {
             $sum['uniqueIps'] = $ipSketch->count();
             $sum['attackIps'] = $attackExact ? count($attackSet) : max(count($attackSet), $attackSketch->count());
-            $sum['hostWafIps'] = count($hwSet);
+            // Списки IP днів обрізані до 1000 — тоді об'єднання недорахувало б; беремо HLL.
+            $sum['hostWafIps'] = $hwExact ? count($hwSet) : max(count($hwSet), $hwSketch->count());
         }
         $report['attackIps'] = $days === 1 && isset($rows[0]['breakdown']['report']['attackIps'])
             ? (int) $rows[0]['breakdown']['report']['attackIps']
@@ -145,6 +156,7 @@ final class RangeSummarizer
                 'bots' => array_slice(self::sortDesc($bots), 0, self::TOP_N, true),
                 'verifiedBotRequests' => $verifiedBotRequests,
                 'botAttackLike' => $botAttackLike,
+                'weakAttackLike' => $weakAttackLike,
                 'hours' => $hours,
                 'hoursAttacks' => $hoursAttacks,
                 'topIps' => self::finishTop($topIps, 'ip'),

@@ -33,7 +33,7 @@ final class Settings
         // Довіра
         'whitelist_ranges' => '',               // рядки: IP, префікс "1.2.3." або CIDR
         'trust_admin_ip' => true,
-        'trust_admin_days' => 7,
+        'trust_admin_days' => 1,
         'trust_cloudflare' => false,
 
         // Блокування

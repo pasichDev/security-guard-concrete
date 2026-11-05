@@ -15,6 +15,7 @@ use PasichDev\SecurityGuard\Contract\ScoreServiceInterface;
 use PasichDev\SecurityGuard\Contract\StateCacheInterface;
 use PasichDev\SecurityGuard\Contract\WhitelistInterface;
 use PasichDev\SecurityGuard\State\Counters;
+use PasichDev\SecurityGuard\State\StateDir;
 use Throwable;
 
 /**
@@ -35,9 +36,28 @@ final class Maintenance
         $this->app = $app;
     }
 
-    /** @return array<string, int|string> скільки видалено по кожній частині (або текст помилки) */
-    public function run(): array
+    /** Позначка останнього запуску (mtime) — за нею гарячий шлях вирішує, чи потрібен запасний запуск. */
+    public const MARKER = 'maintenance.last';
+
+    /** Секунд з останнього запуску, після яких cron вважається таким, що не працює. */
+    public const STALE_AFTER = 86400;
+
+    /** Чи давно не було очищення (cron не налаштований чи не працює). */
+    public static function isStale(?string $dir = null): bool
     {
+        $mtime = @filemtime(($dir ?? StateDir::path()) . '/' . self::MARKER);
+
+        return $mtime === false || $mtime < time() - self::STALE_AFTER;
+    }
+
+    /**
+     * @param float $budget загальний ліміт часу, секунд (CLI — більше, запасний запуск із веба — мало)
+     * @return array<string, int|string> скільки видалено по кожній частині (або текст помилки)
+     */
+    public function run(float $budget = 30.0): array
+    {
+        $started = microtime(true);
+        @touch(StateDir::path() . '/' . self::MARKER);
         $settings = $this->app->make(StateCacheInterface::class)->load()['settings'];
         $retention = max(1, (int) ($settings['event_retention_days'] ?? 90));
         $tasks = [
@@ -73,12 +93,25 @@ final class Maintenance
                     [time() - self::BOT_CACHE_DAYS * 86400]
                 );
             },
-            'counters' => function (): int {
-                return Counters::store()->purgeExpired();
+            'counters' => function () use ($started, $budget): int {
+                return Counters::store()->purgeExpired(20000, max(0.2, min(5.0, $budget - (microtime(true) - $started))));
+            },
+            'botQueue' => function () use ($started, $budget): int {
+                $left = $budget - (microtime(true) - $started);
+                if ($left < 1.0) {
+                    return 0;
+                }
+                $verifier = new BotVerifier($this->app, Counters::store());
+
+                return $verifier->processQueue(min(20.0, $left));
             },
         ];
         $out = [];
         foreach ($tasks as $name => $task) {
+            if (microtime(true) - $started > $budget) {
+                $out[$name] = 'skipped: time budget';
+                continue;
+            }
             try {
                 $out[$name] = $task();
             } catch (Throwable $e) {

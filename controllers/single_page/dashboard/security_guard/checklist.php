@@ -31,15 +31,16 @@ class Checklist extends BaseController
         }
         $result = $this->safe(function () {
             $audit = new Audit($this->app, $this->siteUrl());
+            $audit->setClientIp((string) ($this->clientIps()['resolved'] ?? ''));
             $result = $audit->run();
             $audit->save($result);
 
             return $result;
         }, null, t('Security check'));
         if (is_array($result)) {
-            $this->flash('success', t('The security check is finished in %s s.', (string) ($result['duration'] ?? '?')));
+            $this->notify('success', t('The security check is finished in %s s.', (string) ($result['duration'] ?? '?')));
         } else {
-            $this->flash('error', t('The security check could not run.') . ' ' . implode(' ', $this->serviceErrors));
+            $this->notify('error', t('The security check could not run.') . ' ' . implode(' ', $this->serviceErrors));
         }
 
         return $this->back();

@@ -59,13 +59,13 @@ $now = time();
                         <label class="form-label" for="sg-b-duration"><?= h(t('Duration')) ?></label>
                         <select class="form-select form-select-sm" id="sg-b-duration" name="duration">
                             <?php foreach ($durations as $k => $label) { ?>
-                                <option value="<?= h((string) $k) ?>"<?= (string) $k === '86400' ? ' selected' : '' ?>><?= h($label) ?></option>
+                                <option value="<?= h((string) $k) ?>"<?= (string) $k === (string) ($prefillDuration ?? '86400') ? ' selected' : '' ?>><?= h($label) ?></option>
                             <?php } ?>
                         </select>
                     </div>
                     <div class="col-sm-8">
                         <label class="form-label" for="sg-b-reason"><?= h(t('Reason (optional, Latin letters)')) ?></label>
-                        <input class="form-control form-control-sm" id="sg-b-reason" name="reason" maxlength="40" placeholder="SPAM" pattern="[A-Za-z0-9_ ]*">
+                        <input class="form-control form-control-sm" id="sg-b-reason" name="reason" maxlength="40" placeholder="SPAM" pattern="[A-Za-z0-9_ ]*" value="<?= h($prefillReason ?? '') ?>">
                     </div>
                     <div class="col-sm-4">
                         <button type="submit" class="btn btn-danger btn-sm w-100"><?= h(t('Block')) ?></button>

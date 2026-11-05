@@ -42,6 +42,28 @@ final class IpRange
         return $out === false ? '' : strtolower($out);
     }
 
+    /**
+     * Ключ «суб'єкта» для лічильників, балів і банів: IPv4 — сама адреса,
+     * IPv6 — мережа /64 («2001:db8:1:2::/64»), бо один клієнт IPv6 зазвичай
+     * має цілу /64 і міняє адреси всередині неї. Вже готовий /64 повертається як є.
+     */
+    public static function subject(string $ip): string
+    {
+        $ip = trim($ip);
+        if (substr($ip, -3) === '/64' && strpos($ip, ':') !== false) {
+            $net = self::normalize(substr($ip, 0, -3));
+
+            return $net === '' ? '' : self::subject($net);
+        }
+        $ip = self::normalize($ip);
+        if ($ip === '' || strpos($ip, ':') === false) {
+            return $ip;
+        }
+        $bin = (string) inet_pton($ip);
+
+        return strtolower((string) inet_ntop(substr($bin, 0, 8) . str_repeat("\0", 8))) . '/64';
+    }
+
     public static function isLoopback(string $ip): bool
     {
         $ip = self::normalize($ip);

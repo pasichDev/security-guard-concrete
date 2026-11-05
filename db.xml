@@ -125,7 +125,8 @@
     <!-- JSON: categories, rules, topIps [{ip,count,attacks,bot}], topAttackIps [{ip,count,bot}], topUrls, top404,
          hours[24], hoursAttacks[24], statuses, bots, attackIpList (≤1000), ipSketch/attackIpSketch (HLL),
          excluded, partialLines, botAttackLike, report {attackRequests, attackIps, attackIpList, loginFailed, categories},
-         hostWaf {categories, topRules, topIps, topUrls, ipList, ipListTruncated} -->
+         hostWaf {categories, topRules, topIps, topUrls, ipList, ipListTruncated, ipSketch}, ipMapsCapped, weakAttackLike,
+         report.totalRequests, report.blocked403, report.overload508 -->
     <field name="breakdown" type="text"/>
     <field name="updatedAt" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
   </table>

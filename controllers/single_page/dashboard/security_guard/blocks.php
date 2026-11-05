@@ -52,6 +52,9 @@ class Blocks extends BaseController
         $prefill = $this->queryString('ban_ip', 45);
         $this->set('prefillIp', filter_var($prefill, FILTER_VALIDATE_IP) ? $prefill : '');
         $this->set('prefillBot', $this->prefillBotName($prefill));
+        $dur = $this->queryString('duration', 16);
+        $this->set('prefillDuration', array_key_exists($dur, $this->durations()) ? $dur : '86400');
+        $this->set('prefillReason', (string) preg_replace('/[^A-Za-z0-9_ ]/', '', $this->queryString('reason', 40)));
         $this->setPagination((int) ($result['total'] ?? 0), self::PER_PAGE, $page, ['tab' => $tab, 'q' => $search]);
     }
 
@@ -62,7 +65,7 @@ class Blocks extends BaseController
         }
         $ip = $this->postString('ip', 45);
         if (!filter_var($ip, FILTER_VALIDATE_IP)) {
-            $this->flash('error', t('"%s" is not a valid IP address.', $ip));
+            $this->notify('error', t('"%s" is not a valid IP address.', $ip));
 
             return $this->back();
         }
@@ -71,7 +74,7 @@ class Blocks extends BaseController
 
             return true;
         }, false, t('Blocks'));
-        $ok ? $this->flash('success', t('%s is unblocked.', $ip)) : $this->flash('error', t('Could not unblock %s.', $ip));
+        $ok ? $this->notify('success', t('%s is unblocked.', $ip)) : $this->notify('error', t('Could not unblock %s.', $ip));
 
         return $this->back(['tab' => $this->postString('tab', 10)]);
     }
@@ -98,8 +101,8 @@ class Blocks extends BaseController
             }
         }
         $done
-            ? $this->flash('success', t('Unblocked: %s. The behaviour score was reset as well.', implode(', ', $done)))
-            : $this->flash('error', t('Could not determine or unblock your IP address.'));
+            ? $this->notify('success', t('Unblocked: %s. The behaviour score was reset as well.', implode(', ', $done)))
+            : $this->notify('error', t('Could not determine or unblock your IP address.'));
 
         return $this->back();
     }
@@ -111,7 +114,7 @@ class Blocks extends BaseController
         }
         $duration = $this->postString('duration', 16);
         if (!array_key_exists($duration, $this->durations())) {
-            $this->flash('error', t('Invalid block duration.'));
+            $this->notify('error', t('Invalid block duration.'));
 
             return $this->back();
         }

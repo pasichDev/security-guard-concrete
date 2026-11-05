@@ -27,7 +27,7 @@ interface CounterStore
     public function delete(string $key): void;
 
     /** Видаляє прострочене (для файлового сховища). Повертає кількість. */
-    public function purgeExpired(int $limit = 5000): int;
+    public function purgeExpired(int $limit = 5000, float $budget = 2.0): int;
 
     public function name(): string;
 }

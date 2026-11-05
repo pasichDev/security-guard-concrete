@@ -53,7 +53,7 @@ final class AlertService implements AlertServiceInterface
             'value' => isset($context['value']) ? (int) $context['value'] : null,
             'baseline' => isset($context['baseline']) ? (int) round((float) $context['baseline']) : null,
             'ip' => $ip !== '' ? $ip : null,
-            'url' => isset($context['url']) ? Text::cut((string) $context['url'], 500) : null,
+            'url' => isset($context['url']) ? Text::url((string) $context['url'], 500) : null,
             'isRead' => 0,
             'createdAt' => time(),
         ]);
@@ -122,12 +122,12 @@ final class AlertService implements AlertServiceInterface
                 'admin_new_ip' => t('Administrator signed in from a new IP address'),
             ];
             $title = $titles[$type] ?? t('Security alert');
-            $lines = [$message, ''];
+            $lines = [Text::cleanUrl($message), ''];
             if (!empty($context['ip'])) {
                 $lines[] = t('IP address: %s', $context['ip']);
             }
             if (!empty($context['url'])) {
-                $lines[] = t('URL: %s', $context['url']);
+                $lines[] = t('URL: %s', Text::cleanUrl((string) $context['url']));
             }
             $lines[] = t('Severity: %s', $severity);
             $lines[] = t('Time: %s', date('Y-m-d H:i:s T'));

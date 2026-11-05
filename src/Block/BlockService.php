@@ -11,6 +11,8 @@ use PasichDev\SecurityGuard\Contract\BlockServiceInterface;
 use PasichDev\SecurityGuard\Contract\StateCacheInterface;
 use PasichDev\SecurityGuard\Geo\CountryGuesser;
 use PasichDev\SecurityGuard\Ip\IpRange;
+use PasichDev\SecurityGuard\State\Counters;
+use PasichDev\SecurityGuard\State\FileStateCache;
 use PasichDev\SecurityGuard\Waf\Text;
 
 /** Бани IP (таблиця SecurityGuardBlocks): один рядок на IP, з історією ескалації. */
@@ -33,14 +35,23 @@ final class BlockService implements BlockServiceInterface
 
     public function block(string $ip, string $reason, string $category, ?int $duration = null, bool $manual = false, array $context = []): array
     {
-        $ip = IpRange::normalize($ip);
-        if ($ip === '') {
+        $subject = self::subject($ip);
+        if ($subject === '') {
             throw new \InvalidArgumentException('Invalid IP address');
         }
         $now = time();
         $settings = $this->state->load()['settings'];
         $db = $this->db();
-        $previous = $db->fetchAssociative('SELECT * FROM SecurityGuardBlocks WHERE ip = ?', [$ip]) ?: null;
+        $previous = $db->fetchAssociative('SELECT * FROM SecurityGuardBlocks WHERE ip = ?', [$subject]) ?: null;
+        $active = $previous !== null && ((int) $previous['permanent'] || (int) $previous['blockedUntil'] > $now);
+
+        // Автоматичний бан поверх чинного — нічого не міняємо (ідемпотентно):
+        // паралельні запити атакувальника не подовжують і не ескалюють бан.
+        if ($active && !$manual) {
+            Counters::store()->set('ban:' . $subject, ['until' => (int) $previous['permanent'] ? 0 : (int) $previous['blockedUntil'], 'reason' => (string) $previous['reason'], 'category' => (string) $previous['category'], 'at' => $now], self::banTtl($previous, $now));
+
+            return $this->cast($previous);
+        }
 
         if ($duration === null) {
             $steps = Escalation::steps((array) ($settings['escalation'] ?? []), (int) ($settings['block_duration'] ?? 3600));
@@ -50,7 +61,10 @@ final class BlockService implements BlockServiceInterface
         } else {
             $level = $previous !== null ? (int) $previous['escalationLevel'] : 0;
         }
-        [$until, $permanent] = Escalation::until(max(0, $duration), $previous, $now);
+        // Ручна дія адміністратора задає термін точно; автоматика не скорочує чинний.
+        [$until, $permanent] = $manual
+            ? ($duration <= 0 ? [0, true] : [$now + $duration, false])
+            : Escalation::until(max(0, $duration), $active ? $previous : null, $now);
 
         $row = [
             'reason' => Text::cut($reason, 64),
@@ -59,43 +73,66 @@ final class BlockService implements BlockServiceInterface
             'permanent' => $permanent ? 1 : 0,
             'escalationLevel' => $level,
             'manual' => $manual ? 1 : 0,
-            'lastUrl' => Text::cut((string) ($context['url'] ?? ''), 500),
+            'lastUrl' => Text::url((string) ($context['url'] ?? ''), 500),
             'lastUserAgent' => Text::cut((string) ($context['userAgent'] ?? ''), 255),
-            'country' => Text::cut((string) ($context['country'] ?? CountryGuesser::guess($ip)), 2),
+            'country' => Text::cut((string) ($context['country'] ?? CountryGuesser::guess(strpos($subject, '/') === false ? $subject : $ip)), 2),
             'updatedAt' => $now,
         ];
         if ($previous !== null) {
             $row['attempts'] = (int) $previous['attempts'] + 1;
-            $db->update('SecurityGuardBlocks', $row, ['ip' => $ip]);
+            $db->update('SecurityGuardBlocks', $row, ['ip' => $subject]);
         } else {
-            $row += ['ip' => $ip, 'attempts' => 1, 'createdAt' => $now];
+            $row += ['ip' => $subject, 'attempts' => 1, 'createdAt' => $now];
             $db->insert('SecurityGuardBlocks', $row);
         }
-        $this->state->rebuild();
+        // Гарячий шлях бачить бан одразу через лічильник; файл стану — з дебаунсом.
+        Counters::store()->set('ban:' . $subject, ['until' => $permanent ? 0 : $until, 'reason' => $row['reason'], 'category' => $row['category'], 'manual' => $manual, 'at' => $now], $permanent ? 86400 : max(1, $until - $now));
+        if ($manual || !$this->state instanceof FileStateCache) {
+            $this->state->rebuild();
+        } else {
+            $this->state->rebuildDebounced();
+        }
 
-        return $this->cast($db->fetchAssociative('SELECT * FROM SecurityGuardBlocks WHERE ip = ?', [$ip]) ?: ($row + ['ip' => $ip]));
+        return $this->cast($db->fetchAssociative('SELECT * FROM SecurityGuardBlocks WHERE ip = ?', [$subject]) ?: ($row + ['ip' => $subject]));
     }
 
     public function unblock(string $ip): void
     {
-        $ip = IpRange::normalize($ip);
-        if ($ip === '') {
+        $subject = self::subject($ip);
+        if ($subject === '') {
             return;
         }
         $now = time();
-        // Рядок лишається як історія (для ескалації та вкладки «Історія»).
-        $affected = $this->db()->executeStatement(
-            'UPDATE SecurityGuardBlocks SET blockedUntil = ?, permanent = 0, updatedAt = ? WHERE ip = ? AND (permanent = 1 OR blockedUntil > ?)',
-            [$now - 1, $now, $ip, $now]
-        );
-        if ($affected > 0 || isset($this->state->load()['blocks'][$ip])) {
+        $keys = array_values(array_unique([$subject, IpRange::normalize($ip) ?: $subject]));
+        $affected = 0;
+        foreach ($keys as $key) {
+            // Рядок лишається як історія (для ескалації та вкладки «Історія»).
+            $affected += (int) $this->db()->executeStatement(
+                'UPDATE SecurityGuardBlocks SET blockedUntil = ?, permanent = 0, updatedAt = ? WHERE ip = ? AND (permanent = 1 OR blockedUntil > ?)',
+                [$now - 1, $now, $key, $now]
+            );
+            Counters::store()->delete('ban:' . $key);
+        }
+        $blocks = $this->state->load()['blocks'];
+        if ($affected > 0 || isset($blocks[$subject]) || isset($blocks[$keys[1] ?? $subject])) {
             $this->state->rebuild();
         }
     }
 
+    /** Ключ бану: IPv4 як є, IPv6 — мережа /64. Порожній рядок — невалідна адреса. */
+    public static function subject(string $ip): string
+    {
+        return IpRange::subject($ip);
+    }
+
+    private static function banTtl(array $row, int $now): int
+    {
+        return (int) $row['permanent'] ? 86400 : max(1, (int) $row['blockedUntil'] - $now);
+    }
+
     public function find(string $ip): ?array
     {
-        $ip = IpRange::normalize($ip);
+        $ip = self::subject($ip);
         if ($ip === '') {
             return null;
         }
@@ -146,7 +183,7 @@ final class BlockService implements BlockServiceInterface
         }
         $this->db()->executeStatement(
             'UPDATE SecurityGuardBlocks SET attempts = attempts + ?, updatedAt = ? WHERE ip = ?',
-            [$count, time(), IpRange::normalize($ip)]
+            [$count, time(), self::subject($ip)]
         );
     }
 

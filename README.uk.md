@@ -75,12 +75,15 @@
 повертає попередні файли, якщо щось пішло не так):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pasichDev/security-guard-concrete/main/bin/server-update.sh -o ~/sg-update.sh
-bash ~/sg-update.sh            # остання версія з main
-bash ~/sg-update.sh v1.1.0     # тег або коміт
+VERSION=v1.2.0
+curl -fsSL "https://raw.githubusercontent.com/pasichDev/security-guard-concrete/${VERSION}/bin/server-update.sh" -o ~/sg-update.sh
+bash ~/sg-update.sh "${VERSION}"                     # без аргументу — найновіший тег vX.Y.Z
+EXPECTED_SHA=<sha коміту> bash ~/sg-update.sh v1.2.0  # відмовитися, якщо тег вказує на інший коміт
 ```
 
-Змінні: `SITE_ROOT` (за замовчуванням `~/public_html`), `PHP`, `SITE_URL`. Перед оновленням
+Змінні: `SITE_ROOT` (за замовчуванням `~/public_html`), `PHP`, `SITE_URL`, `EXPECTED_SHA`, `REQUIRE_SIGNED=1`.
+Коди виходу: 0 — готово, 1 — помилка (файли повернуто, якщо їх уже підмінили), 2 — вже йде інший запуск,
+3 — встановлено, але перевірка головної не пройшла (файли лишено — база вже оновлена). Перед оновленням
 зробіть бекап бази — зміни схеми не відкочуються.
 
 **Вручну:**
@@ -102,9 +105,9 @@ bash ~/sg-update.sh v1.1.0     # тег або коміт
 ## Cron (імпорт логів хостингу й очищення)
 
 ```cron
-15 * * * *  php /шлях/до/сайту/concrete/bin/concrete5 security-guard:ingest  >/dev/null 2>&1
-30 3 * * *  php /шлях/до/сайту/concrete/bin/concrete5 security-guard:cleanup >/dev/null 2>&1
-30 4 * * 1  php /шлях/до/сайту/concrete/bin/concrete5 security-guard:update-ranges >/dev/null 2>&1
+15 * * * *    php /шлях/до/сайту/concrete/bin/concrete5 security-guard:ingest        >/dev/null 2>&1
+*/15 * * * *  php /шлях/до/сайту/concrete/bin/concrete5 security-guard:cleanup       >/dev/null 2>&1
+30 4 * * 1    php /шлях/до/сайту/concrete/bin/concrete5 security-guard:update-ranges >/dev/null 2>&1
 ```
 
 На cPanel із CloudLinux вказуйте повний шлях до PHP, напр. `/opt/alt/php82/usr/bin/php`.

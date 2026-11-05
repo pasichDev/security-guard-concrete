@@ -6,6 +6,10 @@ namespace Concrete\Package\SecurityGuard;
 use Concrete\Core\Package\Package;
 use Concrete\Core\Page\Page;
 use Concrete\Core\Page\Single;
+use Concrete\Core\Permission\Access\Access as PermissionAccess;
+use Concrete\Core\Permission\Access\Entity\GroupEntity;
+use Concrete\Core\Permission\Key\Key as PermissionKey;
+use Concrete\Core\User\Group\Group;
 use PasichDev\SecurityGuard\ServiceProvider;
 use Throwable;
 
@@ -14,7 +18,7 @@ defined('C5_EXECUTE') or die('Access Denied.');
 final class Controller extends Package
 {
     protected $pkgHandle = 'security_guard';
-    protected $pkgVersion = '1.1.0';
+    protected $pkgVersion = '1.2.0';
     protected $appVersionRequired = '9.5.2';
     protected $pkgAutoloaderRegistries = [
         'src' => 'PasichDev\\SecurityGuard',
@@ -100,6 +104,34 @@ final class Controller extends Package
             }
             if (is_object($page) && !$page->isError()) {
                 $page->update(['cName' => $name, 'cDescription' => $description]);
+            }
+        }
+        $this->restrictToAdministrators();
+    }
+
+    /**
+     * Панель керує фаєрволом, білим списком і токеном аварійного обходу — лише
+     * для адміністраторів. Без цього сторінки успадкували б права /dashboard, а
+     * сайти часто відкривають /dashboard редакторам. Дочірні сторінки успадковують
+     * права від /dashboard/security_guard.
+     */
+    private function restrictToAdministrators(): void
+    {
+        $root = Page::getByPath('/dashboard/security_guard');
+        $admins = Group::getByID(ADMIN_GROUP_ID);
+        if (!is_object($root) || $root->isError() || !is_object($admins)) {
+            return;
+        }
+        $root->setPermissionsToManualOverride();
+        $pk = PermissionKey::getByHandle('view_page');
+        $pk->setPermissionObject($root);
+        $pa = PermissionAccess::create($pk);
+        $pa->addListItem(GroupEntity::getOrCreate($admins), false, PermissionKey::ACCESS_TYPE_INCLUDE);
+        $pk->getPermissionAssignmentObject()->assignPermissionAccess($pa);
+        foreach (array_keys(self::SINGLE_PAGES) as $path) {
+            $child = Page::getByPath($path);
+            if ($path !== '/dashboard/security_guard' && is_object($child) && !$child->isError()) {
+                $child->inheritPermissionsFromParent();
             }
         }
     }

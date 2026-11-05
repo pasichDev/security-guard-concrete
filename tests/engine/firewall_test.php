@@ -77,6 +77,7 @@ final class World
     public $counters;
     public $bots;
     public $dns = [];
+    public $dnsCalls = 0;
 
     public function __construct()
     {
@@ -85,13 +86,17 @@ final class World
         $this->honeypot = new FakeHoneypot();
         $this->scores = new FakeScores();
         $this->alerts = new FakeAlerts();
-        $this->counters = new FileCounterStore(sg_temp_dir('fw') . '/c', str_repeat('c', 64));
+        $dir = sg_temp_dir('fw');
+        $this->counters = new FileCounterStore($dir . '/c', str_repeat('c', 64));
         $dns = &$this->dns;
-        $this->bots = new BotVerifier(null, $this->counters, static function (string $ip) use (&$dns) {
+        $this->dnsCalls = 0;
+        $calls = &$this->dnsCalls;
+        $this->bots = new BotVerifier(null, $this->counters, static function (string $ip) use (&$dns, &$calls) {
+            $calls++;
             return $dns['ptr'][$ip] ?? $ip;
         }, static function (string $host, bool $v6) use (&$dns) {
             return $dns['a'][$host] ?? [];
-        });
+        }, $dir);
     }
 
     public function firewall(array $settings = [], array $blocks = [], array $whitelist = []): Firewall
@@ -101,7 +106,7 @@ final class World
 
         return new Firewall($state, $this->counters, static function (string $id) use ($map) {
             return $map[$id];
-        });
+        }, null, 1);
     }
 }
 
@@ -120,6 +125,9 @@ function req(string $uri, array $o = []): RequestInfo
     $r->body = $o['body'] ?? '';
     $r->isLoginAttempt = $o['login'] ?? false;
     $r->now = $o['now'] ?? time();
+    $r->fetchSite = $o['site'] ?? '';
+    $r->fetchDest = $o['dest'] ?? '';
+    $r->loginUser = $o['user'] ?? '';
 
     return $r;
 }
@@ -134,16 +142,45 @@ T::eq(null, $fw->inspect(req('/wp-login.php'), $no), 'monitor: атака про
 T::eq([], $w->blocks->calls, 'monitor: бан не ставиться');
 T::eq(['203.0.113.50', 'HONEYPOT', 'honeypot', 'logged'], $w->events->last(), 'monitor: подія logged');
 
-// 2. Enforce: honeypot → бан + відмова з налаштованим кодом.
+// 2. Enforce: honeypot — пасивне правило: перші два РІЗНІ влучання — відмова без бану, третє — бан.
 $w = new World();
 $fw = $w->firewall($enforce);
 $d = $fw->inspect(req('/wp-login.php'), $no);
 T::eq(403, $d->status ?? null, 'enforce: honeypot → 403');
-T::eq([['203.0.113.50', 'HONEYPOT', 'honeypot']], $w->blocks->calls, 'enforce: бан поставлено');
-T::eq('banned', $w->events->last()[3], 'enforce: подія banned');
+T::ok(!$d->banned, 'перше влучання — без бану');
+T::eq([], $w->blocks->calls, 'бан не поставлено після першого');
+T::eq('blocked', $w->events->last()[3], 'подія blocked');
 T::eq(1, count($w->honeypot->hits), 'honeypot записано');
+$fw->inspect(req('/wp-login.php'), $no);
+T::eq([], $w->blocks->calls, 'повтор того самого URL не рахується як нове влучання');
+$fw->inspect(req('/.env'), $no);
+T::eq([], $w->blocks->calls, 'друге різне влучання — без бану');
+$d = $fw->inspect(req('/phpmyadmin/'), $no);
+T::ok($d->banned ?? false, 'третє різне влучання → бан');
+T::eq('HONEYPOT', $w->blocks->calls[0][1] ?? null, 'бан HONEYPOT');
+T::eq('banned', $w->events->last()[3], 'подія banned');
 $d = $w->firewall($enforce + ['response_code' => 404])->inspect(req('/.env', ['ip' => '198.51.100.7']), $no);
 T::eq(404, $d->status ?? null, 'response_code 404');
+
+// 2a. Запит, ініційований чужим сайтом (<img src="https://сайт/.env">), ніколи не банить.
+$w = new World();
+$fw = $w->firewall($enforce);
+foreach (['/.env', '/.git/config', '/wp-login.php', '/phpmyadmin/', '/?q=<script>alert(1)</script>', '/?x=${jndi:ldap://a/b}'] as $i => $uri) {
+    $d = $fw->inspect(req($uri, ['site' => 'cross-site', 'dest' => 'image']), $no);
+    T::ok($d !== null && !$d->banned, 'cross-site <img> ' . $uri . ': відмова без бану');
+}
+$d = $fw->inspect(req('/.env', ['site' => 'same-origin', 'dest' => 'image']), $no);
+T::ok($d !== null && !$d->banned, 'same-origin <img> (Sec-Fetch-Dest: image) — без бану');
+$d = $fw->inspect(req('/.env', ['site' => 'cross-site', 'dest' => 'document']), $no);
+T::ok($d !== null && !$d->banned, 'перехід за посиланням з іншого сайту — без бану');
+T::eq([], $w->blocks->calls, 'жодного бану від крос-сайтових запитів');
+// Однозначний експлойт напряму (без Sec-Fetch) — бан одразу.
+$w = new World();
+$d = $w->firewall($enforce)->inspect(req('/?x=${jndi:ldap://a/b}'), $no);
+T::ok($d->banned ?? false, 'log4shell напряму — бан одразу');
+$w = new World();
+$d = $w->firewall($enforce)->inspect(req('/?q=<script>alert(1)</script>'), $no);
+T::ok($d !== null && !$d->banned, 'XSS у query — пасивне: перше влучання без бану');
 
 // 3. Легасі-редиректи й звичайні сторінки не чіпаються навіть у enforce.
 $w = new World();
@@ -166,8 +203,13 @@ T::eq(null, $fw->inspect(req('/wp-login.php'), $yes), 'адмін із дост�
 T::ok($fw->isTrusted(), 'адмін позначений довіреним');
 $fw = $w->firewall($enforce + ['whitelist_ranges' => '203.0.113.0/24'], $banned);
 T::eq(null, $fw->inspect(req('/wp-login.php'), $no), 'білий список (налаштування) обходить бан');
-$fw = $w->firewall($enforce, $banned, [['range' => '203.0.113.50', 'expires' => time() + 60]]);
-T::eq(null, $fw->inspect(req('/wp-login.php'), $no), 'автодовіра обходить бан');
+$fw = $w->firewall($enforce, $banned, [['range' => '203.0.113.50', 'expires' => time() + 60, 'auto' => true]]);
+T::ok($fw->inspect(req('/'), $no) !== null, 'автодовіра НЕ знімає чинного бану');
+$fw = $w->firewall($enforce, [], [['range' => '203.0.113.50', 'expires' => time() + 60, 'auto' => true]]);
+T::eq(null, $fw->inspect(req('/wp-login.php'), $no), 'автодовіра: без евристик');
+T::eq('auto', $fw->trustLevel(), 'рівень довіри auto');
+$fw = $w->firewall($enforce, $banned, [['range' => '203.0.113.50', 'expires' => 0, 'auto' => false]]);
+T::eq(null, $fw->inspect(req('/wp-login.php'), $no), 'ручний запис білого списку обходить бан');
 $fw = $w->firewall($enforce, $banned, [['range' => '203.0.113.50', 'expires' => time() - 60]]);
 T::ok($fw->inspect(req('/'), $no) !== null, 'прострочена автодовіра не діє');
 T::eq(null, $w->firewall($enforce)->inspect(req('/wp-login.php', ['ip' => '127.0.0.1']), $no), 'loopback довірений');
@@ -197,7 +239,14 @@ T::eq(null, (new World())->firewall([], $banned)->inspect(req('/'), $no), 'monit
 $w = new World();
 $fw = $w->firewall($enforce + ['bypass_token' => 'S3cr3t-Token-123'], $banned);
 T::ok($fw->inspect(req('/', ['bypass' => 'wrong']), $no) !== null, 'неправильний sg_pass не допомагає');
-T::eq(null, $fw->inspect(req('/', ['bypass' => 'S3cr3t-Token-123']), $no), 'правильний sg_pass пропускає');
+$d = $fw->inspect(req('/novyny?sg_pass=S3cr3t-Token-123&page=2', ['bypass' => 'S3cr3t-Token-123']), $no);
+T::eq(302, $d->status ?? null, 'правильний sg_pass → перенаправлення');
+T::eq('/novyny?page=2', $d->location ?? null, 'перенаправлення без токена');
+foreach ($w->events->rows as $row) {
+    T::ok(strpos(implode(' ', $row), 'S3cr3t') === false, 'токен не потрапляє в журнал');
+}
+T::eq('/evil.example/x', Firewall::safeLocation('//evil.example/x?sg_pass=1'), 'safeLocation: //host → локальний шлях без токена');
+T::ok(strpos(Firewall::safeLocation('//evil.example/x'), '//') !== 0, 'перенаправлення не на інший хост');
 T::ok(in_array(['203.0.113.50', 'UNBLOCK', ''], $w->blocks->calls, true), 'sg_pass знімає бан');
 $fw = $w->firewall($enforce, $banned);
 T::ok($fw->inspect(req('/', ['bypass' => '']), $no) !== null, 'порожній bypass_token вимикає обхід');
@@ -328,8 +377,25 @@ $w->dns = ['ptr' => ['66.249.66.1' => 'crawl-66-249-66-1.googlebot.com.', '6.6.6
 $fw = $w->firewall($enforce + ['rate_limit_requests' => 1]);
 T::eq(null, $fw->inspect(req('/', ['ip' => '66.249.66.1', 'ua' => $gb]), $no), 'справжній Googlebot');
 T::eq(null, $fw->inspect(req('/a', ['ip' => '66.249.66.1', 'ua' => $gb]), $no), 'справжній Googlebot не впирається в ліміт');
-T::eq('FAKE_BOT', $fw->inspect(req('/', ['ip' => '6.6.6.6', 'ua' => $gb]), $no)->rule ?? null, 'rDNS не Google → фейк');
-T::eq('FAKE_BOT', $fw->inspect(req('/', ['ip' => '7.7.7.7', 'ua' => $gb]), $no)->rule ?? null, 'прямий DNS не збігся → фейк');
+// На запиті — жодного DNS: невідома IP з UA Googlebot «не перевірена», у черзі.
+$before = $w->dnsCalls;
+T::eq(null, $fw->inspect(req('/', ['ip' => '6.6.6.6', 'ua' => $gb]), $no), 'невідомий «Googlebot» на запиті — не фейк');
+T::eq(null, $fw->inspect(req('/b', ['ip' => '7.7.7.7', 'ua' => $gb]), $no), 'другий невідомий — теж');
+T::eq($before, $w->dnsCalls, 'жодного DNS-запиту на гарячому шляху');
+// Перевірка з черги (cron) з лімітом часу.
+T::eq(2, $w->bots->processQueue(5.0), 'черга оброблена (2 IP)');
+T::eq(0, $w->bots->processQueue(5.0), 'повторно — порожньо (без подвійних перевірок)');
+$fw = $w->firewall($enforce + ['rate_limit_requests' => 1000]);
+T::eq('FAKE_BOT', $fw->inspect(req('/c', ['ip' => '6.6.6.6', 'ua' => $gb]), $no)->rule ?? null, 'після перевірки: rDNS не Google → фейк');
+T::eq('FAKE_BOT', $fw->inspect(req('/d', ['ip' => '7.7.7.7', 'ua' => $gb]), $no)->rule ?? null, 'після перевірки: прямий DNS не збігся → фейк');
+// Конкурентна обробка тієї самої черги неможлива (неблокуючий замок).
+$lockDir = sg_temp_dir('botlock');
+$lock = fopen($lockDir . '/botqueue.lock', 'c');
+flock($lock, LOCK_EX);
+$other = new BotVerifier(null, $w->counters, static function () { return 'x.googlebot.com'; }, null, $lockDir);
+file_put_contents($lockDir . '/botqueue.txt', "9.9.9.9|Googlebot\n");
+T::eq(0, $other->processQueue(1.0), 'інший процес не обробляє чергу під замком');
+flock($lock, LOCK_UN);
 T::eq(null, $fw->inspect(req('/', ['ip' => '8.8.4.4', 'ua' => $gb]), $no), 'нема PTR → не перевірено, але не бан');
 T::eq(BotVerifier::VERIFIED, BotVerifier::evaluate('2001:4860:4801:10::1', ['.googlebot.com'], 'crawl.googlebot.com', ['2001:4860:4801:0010:0000:0000:0000:0001']), 'IPv6 Googlebot');
 T::eq(BotVerifier::UNVERIFIED, BotVerifier::evaluate('1.2.3.4', ['.googlebot.com'], 'x.googlebot.com', []), 'прямий DNS мовчить → не перевірено');
@@ -366,7 +432,111 @@ $fw = new Firewall($state, $w->counters, static function (string $id) use ($w) {
     }
     return $w->events;
 }, static function (string $m) use (&$logged): void { $logged[] = $m; });
-T::eq(403, $fw->inspect(req('/.git/config'), $no)->status ?? null, 'збій бази при бані: відмова, без винятку');
+T::eq(403, $fw->inspect(req('/?x=${jndi:ldap://a/b}'), $no)->status ?? null, 'збій бази при бані: відмова, без винятку');
 T::ok(count(array_filter($logged, static function (string $m): bool { return strpos($m, 'DB down') !== false; })) === 1, 'збій записано в лог');
+
+// 17. Звичайний текст у формах не банить і не відхиляється (слабкі ознаки → журнал + бали).
+$w = new World();
+$fw = $w->firewall($enforce + ['rate_limit_enabled' => false]);
+$prose = [
+    'My operating system (Windows 10) is slow',
+    'I need more sleep (8 hours) before exams',
+    'I love you <3 and online=yes',
+    'operating system (linux)',
+    'linux; cat command',
+    'Скажіть, будь ласка, коли union студентів обере (select) голову?',
+    'Формула: a<b та b>c, тобто 2<3',
+    'Мій код: "echo exec(); ?>" не працює :(',
+    'Students union select their leader in May',
+];
+foreach ($prose as $i => $text) {
+    $d = $fw->inspect(req('/kontakty', ['method' => 'POST', 'body' => 'message=' . rawurlencode($text), 'ip' => '198.51.100.' . (40 + $i)]), $no);
+    T::eq(null, $d, 'текст у формі пропускається: ' . $text);
+}
+T::eq([], $w->blocks->calls, 'жодного бану за текст у формах');
+$w = new World();
+$fw = $w->firewall($enforce + ['rate_limit_enabled' => false]);
+$d = $fw->inspect(req('/kontakty', ['method' => 'POST', 'body' => 'm=' . rawurlencode('<script>alert(1)</script>')]), $no);
+T::eq(null, $d, 'слабка ознака (<script> у тілі форми) — без відмови');
+T::eq(['203.0.113.50', 'XSS_SCRIPT', 'xss', 'logged'], $w->events->last(), 'слабка ознака — журнал logged');
+// Накопичення слабких ознак дає бан за поведінкою.
+$d = null;
+for ($i = 0; $i < 6 && $d === null; $i++) {
+    $d = $fw->inspect(req('/kontakty', ['method' => 'POST', 'body' => 'm=' . rawurlencode('<script>x' . $i . '</script>')]), $no);
+}
+T::eq('BEHAVIOR_SCORE', $d->rule ?? null, 'повторні слабкі ознаки → бан за поведінкою');
+// Сильна сигнатура в тілі POST — бан одразу.
+$w = new World();
+$d = $w->firewall($enforce)->inspect(req('/kontakty', ['method' => 'POST', 'body' => 'x=' . rawurlencode('<img src=x onerror=alert(1)>')]), $no);
+T::ok($d->banned ?? false, 'тег з обробником подій у тілі POST — бан одразу');
+$w = new World();
+$d = $w->firewall($enforce)->inspect(req('/kontakty', ['method' => 'POST', 'body' => 'x=' . rawurlencode("system('id')")]), $no);
+T::ok($d->banned ?? false, "system('id') у тілі — бан одразу");
+
+// 18. IPv6: лічильники й бан — на /64.
+$w = new World();
+$fw = $w->firewall($enforce + ['rate_limit_requests' => 3, 'behavior_scoring' => false]);
+$d = null;
+for ($i = 1; $i <= 4 && $d === null; $i++) {
+    $d = $fw->inspect(req('/novyny/' . $i, ['ip' => '2001:db8:1:2::' . dechex($i)]), $no);
+}
+T::eq('RATE_LIMIT', $d->rule ?? null, 'ліміт частоти рахується на /64, а не на адресу');
+T::eq('2001:db8:1:2::/64', $w->blocks->calls[0][0] ?? null, 'бан ставиться на /64');
+$fw = $w->firewall($enforce, ['2001:db8:1:2::/64' => ['until' => 0, 'reason' => 'X', 'category' => 'scanner']]);
+T::ok($fw->inspect(req('/', ['ip' => '2001:db8:1:2:ffff::9']), $no) !== null, 'бан /64 діє на сусідню адресу');
+T::eq(null, $fw->inspect(req('/', ['ip' => '2001:db8:1:3::9']), $no), 'інша /64 не зачеплена');
+T::eq(null, $w->firewall($enforce, ['1.2.3.4' => ['until' => 0, 'reason' => 'X', 'category' => 'scanner']])->inspect(req('/', ['ip' => '1.2.3.5']), $no), 'IPv4 — без агрегації');
+
+// 19. Автодовіра й підбір пароля: логін адміністратора не рахується, чужі логіни — так.
+$w = new World();
+$adminDir = sg_temp_dir('adm');
+PasichDev\SecurityGuard\Login\AdminIps::useDir($adminDir);
+PasichDev\SecurityGuard\Login\AdminIps::remember('203.0.113.50', 'Andrii', time() + 3600);
+$auto = [['range' => '203.0.113.50', 'expires' => time() + 3600, 'auto' => true]];
+$fw = $w->firewall($enforce + ['bruteforce_threshold' => 2], [], $auto);
+$adminTry = req('/login/authenticate/concrete', ['method' => 'POST', 'login' => true, 'user' => 'andrii']);
+$fw->inspect($adminTry, $no);
+T::eq(null, $fw->afterLogin($adminTry, true), 'адмін помилився паролем з автодовіреної IP — не рахується');
+T::eq(null, $fw->afterLogin($adminTry, true), 'і вдруге');
+$otherTry = req('/login/authenticate/concrete', ['method' => 'POST', 'login' => true, 'user' => 'admin']);
+$fw->inspect($otherTry, $no);
+$fw->afterLogin($otherTry, true);
+$d = $fw->afterLogin($otherTry, true);
+T::eq(429, $d->status ?? null, 'підбір чужого логіна з автодовіреної IP (NAT) → 429');
+$fw = $w->firewall($enforce + ['bruteforce_threshold' => 1, 'whitelist_ranges' => '203.0.113.50']);
+$fw->inspect($otherTry, $no);
+T::eq(null, $fw->afterLogin($otherTry, true), 'ручний білий список — не рахується');
+PasichDev\SecurityGuard\Login\AdminIps::useDir(null);
+
+// 20. OAuth2 password grant рахується як вхід.
+$w = new World();
+$fw = $w->firewall($enforce + ['bruteforce_threshold' => 2]);
+$oauth = req('/oauth/2.0/token', ['method' => 'POST', 'login' => true, 'user' => 'admin']);
+$fw->inspect($oauth, $no);
+$fw->afterLogin($oauth, true);
+T::eq(429, $fw->afterLogin($oauth, true)->status ?? null, 'невдалі OAuth2 password grant → 429');
+
+// 20a. Свіжий бан із лічильника діє до перебудови стану; знятий бан (новіший знімок) — ні.
+$w = new World();
+$w->counters->set('ban:203.0.113.77', ['until' => time() + 600, 'reason' => 'HONEYPOT', 'category' => 'honeypot', 'at' => time()], 600);
+$fw = $w->firewall($enforce);
+T::eq('HONEYPOT', $fw->inspect(req('/', ['ip' => '203.0.113.77']), $no)->rule ?? null, 'бан із лічильника до перебудови стану');
+$w->counters->set('ban:203.0.113.78', ['until' => time() + 600, 'reason' => 'X', 'category' => 'scanner', 'at' => 0], 600);
+T::eq(null, $fw->inspect(req('/', ['ip' => '203.0.113.78']), $no), 'бан знято (знімок новіший і без бану) — лічильник ігнорується');
+
+// 20b. Учасник, що увійшов (публічна реєстрація): службові маршрути не «анонімні», але евристики діють.
+$w = new World();
+$fw = $w->firewall($enforce);
+T::eq(null, $fw->inspect(req('/ccm/system/dialogs/page/attributes', ['ip' => '198.51.100.60']), $no, $no, $yes), 'учасник із сесією: не CONCRETE_BACKEND_ANON');
+T::ok($fw->inspect(req('/ccm/system/x?q=' . rawurlencode('<script>alert(1)</script>'), ['ip' => '198.51.100.61']), $no, $no, $yes) !== null, 'учасник із сесією: сигнатури діють');
+
+// 21. Неперевірені «соцботи» більше не обходять скоринг.
+$w = new World();
+$fw = $w->firewall($enforce + ['rate_limit_enabled' => false]);
+$d = null;
+for ($i = 0; $i < 10 && $d === null; $i++) {
+    $d = $fw->inspect(req('/kontakty', ['method' => 'POST', 'referer' => '', 'ua' => 'TelegramBot (like TwitterBot)']), $no);
+}
+T::eq('BEHAVIOR_SCORE', $d->rule ?? null, 'UA TelegramBot не дає обходу скорингу');
 
 T::done('firewall_test');

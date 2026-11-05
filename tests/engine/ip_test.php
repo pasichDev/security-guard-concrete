@@ -89,4 +89,16 @@ T::eq('', CountryGuesser::guess('nope'), 'невалідна → невідом�
 T::eq('NL', CountryGuesser::guess('193.0.14.129'), 'найдовший префікс a.b.c. виграє');
 T::eq(['RU', 'CN', 'BY'], CountryGuesser::parseCountries('ru, CN;by xx1 USA'), 'parseCountries');
 
+// Суб'єкт для лічильників/банів: IPv6 → /64.
+T::eq('1.2.3.4', IpRange::subject('1.2.3.4'), 'subject v4');
+T::eq('1.2.3.4', IpRange::subject('::ffff:1.2.3.4'), 'subject v4-mapped');
+T::eq('2001:db8:1:2::/64', IpRange::subject('2001:db8:1:2:aaaa:bbbb:cccc:dddd'), 'subject v6 → /64');
+T::eq('2001:db8:1:2::/64', IpRange::subject('2001:db8:1:2::/64'), 'subject /64 ідемпотентний');
+T::eq('', IpRange::subject('garbage'), 'subject невалідний');
+T::ok(IpRange::matches('2001:db8:1:2::99', IpRange::subject('2001:db8:1:2::1')), 'адреса входить у свій /64');
+T::eq('manual', Whitelist::trustLevel('127.0.0.1', [], 1), 'trustLevel loopback');
+T::eq('auto', Whitelist::trustLevel('192.0.2.5', ['whitelist' => [['range' => '192.0.2.5', 'expires' => 100, 'auto' => true]]], 50), 'trustLevel auto');
+T::eq('manual', Whitelist::trustLevel('192.0.2.5', ['whitelist' => [['range' => '192.0.2.5', 'expires' => 0, 'auto' => false]]], 50), 'trustLevel manual');
+T::eq(null, Whitelist::trustLevel('192.0.2.5', ['whitelist' => [['range' => '192.0.2.5', 'expires' => 10, 'auto' => true]]], 50), 'trustLevel прострочено');
+
 T::done('ip_test');

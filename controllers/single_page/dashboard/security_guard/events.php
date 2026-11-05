@@ -43,7 +43,7 @@ class Events extends BaseController
     public function export()
     {
         if (!$this->token->validate('sg_export', (string) $this->request->query->get('ccm_token', ''))) {
-            $this->flash('error', $this->token->getErrorMessage());
+            $this->notify('error', $this->token->getErrorMessage());
 
             return $this->back();
         }
@@ -52,7 +52,7 @@ class Events extends BaseController
             return $this->service(EventLogInterface::class);
         }, null, t('Event log'));
         if ($service === null) {
-            $this->flash('error', t('The event log is unavailable.'));
+            $this->notify('error', t('The event log is unavailable.'));
 
             return $this->back();
         }

@@ -54,9 +54,9 @@ final class EventLog implements EventLogInterface
             'category' => Text::cut($category, 32),
             'action' => Text::cut($action, 16),
             'method' => Text::cut(strtoupper((string) ($request['method'] ?? 'GET')), 10),
-            'url' => Text::cut((string) ($request['url'] ?? ''), 500),
+            'url' => Text::url((string) ($request['url'] ?? ''), 500),
             'userAgent' => Text::cut((string) ($request['userAgent'] ?? ''), 255),
-            'referrer' => Text::cut((string) ($request['referrer'] ?? ''), 255),
+            'referrer' => Text::url((string) ($request['referrer'] ?? ''), 255),
             'country' => Text::cut($country, 2),
             'createdAt' => time(),
         ]);

@@ -209,7 +209,7 @@ class Overview extends BaseController
         }
         $target = $this->postString('mode', 16) === Settings::MODE_ENFORCE ? Settings::MODE_ENFORCE : Settings::MODE_MONITOR;
         if ($target === Settings::MODE_ENFORCE && !$this->request->request->get('confirm')) {
-            $this->flash('error', t('Please confirm that you have reviewed the event log before switching to enforce mode.'));
+            $this->notify('error', t('Please confirm that you have reviewed the event log before switching to enforce mode.'));
 
             return $this->back();
         }
@@ -223,11 +223,11 @@ class Overview extends BaseController
         }, false, t('Settings'));
         if ($ok) {
             $this->rebuildState();
-            $this->flash('success', $target === Settings::MODE_ENFORCE
+            $this->notify('success', $target === Settings::MODE_ENFORCE
                 ? t('Enforce mode is on: attacks are now blocked.')
                 : t('Monitor mode is on: attacks are only logged.'));
         } else {
-            $this->flash('error', t('Could not change the mode.'));
+            $this->notify('error', t('Could not change the mode.'));
         }
 
         return $this->back();
@@ -266,7 +266,7 @@ class Overview extends BaseController
             return true;
         }, false, t('Alerts'));
         if ($ok) {
-            $this->flash('success', t('All alerts are marked as read.'));
+            $this->notify('success', t('All alerts are marked as read.'));
         }
 
         return $this->back();

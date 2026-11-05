@@ -21,4 +21,43 @@ final class Text
 
         return mb_substr($value, 0, $max, 'UTF-8');
     }
+
+    /**
+     * Адреса без секретів: прибирає параметр sg_pass (аварійний обхід) з
+     * будь-яким значенням і в будь-якому написанні, яке PHP зведе до sg_pass
+     * (регістр, %-кодування, «.», пробіл, «[»). Токен ніде не зберігаємо.
+     */
+    public static function cleanUrl(string $url): string
+    {
+        $q = strpos($url, '?');
+        if ($q === false) {
+            return $url;
+        }
+        $hash = strpos($url, '#', $q);
+        $fragment = $hash === false ? '' : substr($url, $hash);
+        $query = $hash === false ? substr($url, $q + 1) : substr($url, $q + 1, $hash - $q - 1);
+        $kept = [];
+        foreach (explode('&', $query) as $part) {
+            $eq = strpos($part, '=');
+            $name = strtolower(trim(rawurldecode(str_replace('+', ' ', $eq === false ? $part : substr($part, 0, $eq)))));
+            $bracket = strpos($name, '[');
+            if ($bracket !== false) {
+                $name = substr($name, 0, $bracket); // sg_pass[]=… → масив sg_pass
+            }
+            $name = strtr($name, ['.' => '_', ' ' => '_']);
+            if ($name === 'sg_pass') {
+                continue;
+            }
+            $kept[] = $part;
+        }
+        $base = substr($url, 0, $q);
+
+        return ($kept === [] ? $base : $base . '?' . implode('&', $kept)) . $fragment;
+    }
+
+    /** cleanUrl + cut — для всього, що пишеться в базу чи лист. */
+    public static function url(string $url, int $max): string
+    {
+        return self::cut(self::cleanUrl($url), $max);
+    }
 }

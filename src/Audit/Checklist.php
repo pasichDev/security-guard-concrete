@@ -55,6 +55,9 @@ final class Checklist
     /** @var string */
     private $appDir;
 
+    /** @var string IP адміністратора, як її бачить сайт (для перевірки проксі) */
+    private $clientIp = '';
+
     /**
      * @param string $baseUrl адреса сайту (схема + хост [+ шлях]); проби — лише на неї
      */
@@ -64,6 +67,13 @@ final class Checklist
         $this->baseUrl = rtrim($baseUrl, '/');
         $this->webRoot = rtrim($webRoot !== '' ? $webRoot : (defined('DIR_BASE') ? DIR_BASE : ''), '/');
         $this->appDir = rtrim($appDir !== '' ? $appDir : (defined('DIR_APPLICATION') ? DIR_APPLICATION : ''), '/');
+    }
+
+    public function setClientIp(string $ip): self
+    {
+        $this->clientIp = $ip;
+
+        return $this;
     }
 
     /** @return array{ranAt: int, duration: float, items: array, counts: array} */
@@ -84,6 +94,11 @@ final class Checklist
             'checkErrorDisplay',
             'checkFailedLoginBan',
             'checkPageCache',
+            'checkPanelAccess',
+            'checkClientIp',
+            'checkPcreJit',
+            'checkApcu',
+            'checkRegistration',
         ];
         foreach ($checks as $method) {
             try {
@@ -227,7 +242,7 @@ final class Checklist
         });
         $note = $scan['complete'] ? '' : ' ' . t('(partial scan: %s files checked before the time limit)', number_format($scan['entries'], 0, ',', ' '));
         if (!$found) {
-            return [$this->item('php_uploads', $title, $scan['complete'] ? self::STATUS_OK : self::STATUS_UNKNOWN,
+            return [$this->item('php_uploads', $title, self::STATUS_OK,
                 t('No PHP files found among %s uploaded files.', number_format($scan['entries'], 0, ',', ' ')) . $note, '')];
         }
 
@@ -243,7 +258,9 @@ final class Checklist
         if ($this->webRoot === '' || !is_dir($this->webRoot)) {
             return [$this->item('world_writable', $title, self::STATUS_UNKNOWN, t('The web root was not found.'), '')];
         }
-        $skip = [$this->webRoot . '/application/files/cache', $this->webRoot . '/.git', $this->webRoot . '/node_modules'];
+        // Завантаження (application/files, десятки тисяч файлів) перевіряє окремий пункт;
+        // тут — код і конфігурація сайту.
+        $skip = [$this->webRoot . '/application/files', $this->webRoot . '/.git', $this->webRoot . '/node_modules'];
         $found = [];
         $scan = $this->scan($this->webRoot, $skip, function (string $path, \SplFileInfo $f) use (&$found) {
             $perms = @fileperms($path);
@@ -253,8 +270,9 @@ final class Checklist
         }, true);
         $note = $scan['complete'] ? '' : ' ' . t('(partial scan: %s files checked before the time limit)', number_format($scan['entries'], 0, ',', ' '));
         if (!$found) {
-            return [$this->item('world_writable', $title, $scan['complete'] ? self::STATUS_OK : self::STATUS_UNKNOWN,
-                t('No files or directories with write permission for everyone.') . $note, '')];
+            return [$this->item('world_writable', $title, self::STATUS_OK,
+                t('No files or directories with write permission for everyone.') . $note, '',
+                $scan['complete'] ? [] : [t('Checked: %s files and directories (application/files excluded).', number_format($scan['entries'], 0, ',', ' '))])];
         }
 
         return [$this->item('world_writable', $title, self::STATUS_WARN,
@@ -461,6 +479,139 @@ final class Checklist
             t('Enable it in Dashboard → System & Settings → Optimization → Cache & Speed Settings.'))];
     }
 
+    /**
+     * Хто може відкрити панель: /dashboard/security_guard має перекривати права
+     * /dashboard і давати view_page лише адміністраторам (дочірні — успадковувати).
+     */
+    private function checkPanelAccess(): array
+    {
+        $title = t('Access to Security Guard pages');
+        $root = \Concrete\Core\Page\Page::getByPath('/dashboard/security_guard');
+        if (!is_object($root) || $root->isError()) {
+            return [$this->item('panel_access', $title, self::STATUS_UNKNOWN, t('The page /dashboard/security_guard was not found.'), '')];
+        }
+        $problems = [];
+        if ($root->getCollectionInheritance() !== 'OVERRIDE') {
+            $problems[] = t('/dashboard/security_guard inherits permissions instead of overriding them.');
+        }
+        $pages = [$root];
+        foreach ((array) $root->getCollectionChildren() as $child) {
+            if (is_object($child) && !$child->isError() && $child->getCollectionInheritance() === 'OVERRIDE') {
+                $pages[] = $child;
+            }
+        }
+        $adminGroup = defined('ADMIN_GROUP_ID') ? (int) ADMIN_GROUP_ID : 3;
+        foreach ($pages as $page) {
+            foreach ($this->viewPageEntities($page) as [$type, $id, $label]) {
+                if ($type === 'group' && $id === $adminGroup) {
+                    continue;
+                }
+                $problems[] = t('%s: view access for %s', (string) $page->getCollectionPath(), $label);
+            }
+        }
+        if (!$problems) {
+            return [$this->item('panel_access', $title, self::STATUS_OK, t('Only the Administrators group can open the panel.'), '')];
+        }
+
+        return [$this->item('panel_access', $title, self::STATUS_FAIL,
+            t('People other than administrators may be able to open the panel (the panel itself still denies them, but the page permissions should be fixed).'),
+            t('In Dashboard → Sitemap → /dashboard/security_guard → Permissions, override the parent permissions and give "View" only to Administrators. Reinstalling or upgrading the package does this automatically.'),
+            array_slice($problems, 0, 20))];
+    }
+
+    /** @return array<int, array{0: string, 1: int, 2: string}> тип сутності, id групи (0 — не група), назва */
+    private function viewPageEntities($page): array
+    {
+        $out = [];
+        $pk = \Concrete\Core\Permission\Key\Key::getByHandle('view_page');
+        if (!is_object($pk)) {
+            return $out;
+        }
+        $pk->setPermissionObject($page);
+        $pa = $pk->getPermissionAccessObject();
+        if (!is_object($pa)) {
+            return $out;
+        }
+        foreach ((array) $pa->getAccessListItems(\Concrete\Core\Permission\Key\Key::ACCESS_TYPE_INCLUDE) as $item) {
+            $e = $item->getAccessEntityObject();
+            if (!is_object($e)) {
+                continue;
+            }
+            $type = (string) $e->getAccessEntityTypeHandle();
+            $gid = 0;
+            if ($type === 'group' && method_exists($e, 'getGroupObject') && is_object($e->getGroupObject())) {
+                $gid = (int) $e->getGroupObject()->getGroupID();
+            }
+            $out[] = [$type, $gid, strip_tags((string) $e->getAccessEntityLabel())];
+        }
+
+        return $out;
+    }
+
+    private function checkClientIp(): array
+    {
+        $title = t('Visitor IP detection');
+        $ip = $this->clientIp;
+        if ($ip === '' || !filter_var($ip, FILTER_VALIDATE_IP)) {
+            return [$this->item('client_ip', $title, self::STATUS_UNKNOWN, t('The IP address of this request is unknown.'), '')];
+        }
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+            return [$this->item('client_ip', $title, self::STATUS_WARN,
+                t('Your request arrived from %s, a loopback or private address. If visitors also appear with such addresses, a proxy or load balancer hides their real IP: loopback is always trusted and every visitor would share one IP, so the firewall is effectively off.', $ip),
+                t('On a real hosting set the proxy addresses in Dashboard → System & Settings → Permissions & Access → Trusted Proxies (or enable the Cloudflare option). On a local copy this warning is expected.'))];
+        }
+
+        return [$this->item('client_ip', $title, self::STATUS_OK, t('Your request arrived from the public address %s.', $ip), '')];
+    }
+
+    private function checkPcreJit(): array
+    {
+        $title = t('PCRE JIT for the attack signatures');
+        $jit = ini_get('pcre.jit');
+        $ok = @preg_match('/(?:union\s+select|<script)/i', str_repeat('a', 20000) . ' union  select');
+        $err = preg_last_error();
+        if ($ok === false || $err !== PREG_NO_ERROR) {
+            return [$this->item('pcre_jit', $title, self::STATUS_WARN,
+                t('A test regular expression failed (%s): signature checks may silently skip long requests.', function_exists('preg_last_error_msg') ? preg_last_error_msg() : (string) $err),
+                t('Ask the hosting to enable pcre.jit and raise pcre.backtrack_limit, or select a newer PHP version.'))];
+        }
+        if ($jit === '0' || $jit === '' || $jit === false) {
+            return [$this->item('pcre_jit', $title, self::STATUS_WARN, t('pcre.jit is disabled: signatures run several times slower.'),
+                t('Enable pcre.jit in cPanel → Select PHP Version → Options (or ask the hosting).'))];
+        }
+
+        return [$this->item('pcre_jit', $title, self::STATUS_OK, t('pcre.jit is enabled.'), '')];
+    }
+
+    private function checkApcu(): array
+    {
+        $title = t('APCu for rate counters');
+        $on = function_exists('apcu_enabled') ? (bool) @apcu_enabled() : false;
+        if ($on) {
+            return [$this->item('apcu', $title, self::STATUS_OK, t('APCu is available: request counters are kept in memory.'), '')];
+        }
+
+        return [$this->item('apcu', $title, self::STATUS_WARN,
+            t('APCu is not available: rate limits and spike detection use file counters, which is slower under heavy traffic.'),
+            t('Enable the apcu extension in cPanel → Select PHP Version → Extensions, if the hosting offers it.'))];
+    }
+
+    private function checkRegistration(): array
+    {
+        $title = t('Public registration');
+        $config = $this->app->make('config');
+        $enabled = (bool) $config->get('concrete.user.registration.enabled');
+        $type = (string) $config->get('concrete.user.registration.type');
+        // Так само, як вирішує WAF (GuardMiddleware::publicRegistrationOpen()).
+        if (!$enabled && ($type === 'disabled' || $type === '')) {
+            return [$this->item('registration', $title, self::STATUS_OK, t('Public registration is disabled.'), '')];
+        }
+
+        return [$this->item('registration', $title, self::STATUS_WARN,
+            t('Anyone can create an account (%s). Because of that Security Guard does not trust ordinary signed-in users on Concrete service paths (/ccm/): otherwise registering would be enough to skip the checks. Only administrators keep the bypass, so editors without the Administrators group may see false positives there.', $type !== '' ? $type : 'enabled'),
+            t('If the site does not need visitor accounts, disable registration in Dashboard → System & Settings → Login & Registration → Public Registration; otherwise require e-mail validation or manual approval.'))];
+    }
+
     // ------------------------------------------------------------- допоміжні
 
     /**
@@ -524,7 +675,7 @@ final class Checklist
                 'allow_redirects' => false,
                 'headers' => [
                     'User-Agent' => 'Mozilla/5.0 (compatible; SecurityGuardSelfCheck/1.0)',
-                    \PasichDev\SecurityGuard\Http\SelfProbe::HEADER => \PasichDev\SecurityGuard\Http\SelfProbe::headerValue(),
+                    \PasichDev\SecurityGuard\Http\SelfProbe::HEADER => \PasichDev\SecurityGuard\Http\SelfProbe::headerFor('GET', $url),
                 ],
             ]);
             $headers = [];

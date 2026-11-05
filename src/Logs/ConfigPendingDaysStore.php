@@ -10,10 +10,12 @@ use Concrete\Core\Package\PackageService;
 /**
  * Службовий стан імпорту в БД-конфігу пакета, поза групою settings:
  * черга днів до перерахунку (log_ingest.pending_days) і ознаки сторінки 403
- * хостингу (log_ingest.host_waf).
+ * хостингу (log_ingest.host_waf), покажчик днів у файлах (log_ingest.day_index).
  */
-final class ConfigPendingDaysStore implements PendingDaysStoreInterface, HostWafStateStoreInterface
+final class ConfigPendingDaysStore implements PendingDaysStoreInterface, HostWafStateStoreInterface, DayIndexStoreInterface
 {
+    public const DAY_INDEX_KEY = 'log_ingest.day_index';
+    public const EXCLUDE_KEY = 'log_ingest.exclude_fingerprint';
     public const KEY = 'log_ingest.pending_days';
     public const HOST_WAF_KEY = 'log_ingest.host_waf';
 
@@ -57,6 +59,33 @@ final class ConfigPendingDaysStore implements PendingDaysStoreInterface, HostWaf
     {
         if ($state !== $this->getHostWafState()) {
             $this->config->save(self::HOST_WAF_KEY, $state);
+        }
+    }
+
+    public function getDayIndex(): array
+    {
+        $v = $this->config->get(self::DAY_INDEX_KEY);
+
+        return is_array($v) ? $v : [];
+    }
+
+    public function setDayIndex(array $index): void
+    {
+        if ($index !== $this->getDayIndex()) {
+            $this->config->save(self::DAY_INDEX_KEY, $index);
+        }
+    }
+
+    /** Відбиток списку виключених IP, з яким пораховані збережені дні. */
+    public function getExcludeFingerprint(): string
+    {
+        return (string) $this->config->get(self::EXCLUDE_KEY, '');
+    }
+
+    public function setExcludeFingerprint(string $fp): void
+    {
+        if ($fp !== $this->getExcludeFingerprint()) {
+            $this->config->save(self::EXCLUDE_KEY, $fp);
         }
     }
 }

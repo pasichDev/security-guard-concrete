@@ -7,6 +7,7 @@ namespace PasichDev\SecurityGuard\Tests\Logs;
 
 use PasichDev\SecurityGuard\Logs\AttackClassifierInterface;
 use PasichDev\SecurityGuard\Logs\CursorStoreInterface;
+use PasichDev\SecurityGuard\Logs\DayIndexStoreInterface;
 use PasichDev\SecurityGuard\Logs\DayWriterInterface;
 use PasichDev\SecurityGuard\Logs\PendingDaysStoreInterface;
 
@@ -39,6 +40,22 @@ final class MemoryPending implements PendingDaysStoreInterface
     public function set(array $days): void
     {
         $this->days = array_values($days);
+    }
+}
+
+final class MemoryIndex implements DayIndexStoreInterface
+{
+    public $index = [];
+
+    public function getDayIndex(): array
+    {
+        return $this->index;
+    }
+
+    public function setDayIndex(array $index): void
+    {
+        // Як у БД-конфігу: через JSON.
+        $this->index = json_decode((string) json_encode($index), true);
     }
 }
 

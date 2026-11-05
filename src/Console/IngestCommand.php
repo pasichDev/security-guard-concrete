@@ -26,7 +26,7 @@ final class IngestCommand extends Command
             ->addOption('time-budget', null, InputOption::VALUE_REQUIRED, 'Stop after about S seconds (0 = no limit); run again to continue', '0')
             ->addOption('log-root', null, InputOption::VALUE_REQUIRED, 'Account home directory that contains access-logs/ and logs/ (default: detected)')
             ->addOption('domain', null, InputOption::VALUE_REQUIRED, 'Domain whose logs to read (default: the site canonical URL host)')
-            ->addOption('exclude-ip', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Extra IP, prefix or CIDR to leave out of the statistics')
+            ->addOption('exclude-ip', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Extra IP, prefix or CIDR to leave out of the statistics for this run; a changed list recomputes all days (use the log_exclude_ips setting for permanent exclusions)')
             ->setHelp(<<<'EOT'
 Reads new lines from the hosting access logs (live files and monthly .gz archives),
 then fully recomputes every day those lines belong to. Safe to run repeatedly, e.g. from cron:
@@ -65,6 +65,9 @@ EOT
             'Files: %d, new lines: %d, days recomputed: %d, pending: %d, duplicate lines skipped: %d, malformed lines: %d',
             $r['files'], $r['lines'], count($r['days']), $r['pending'] ?? 0, $r['deduplicated'] ?? 0, $r['malformed'] ?? 0
         ));
+        foreach ($r['notices'] ?? [] as $notice) {
+            $output->writeln('<comment>' . $notice . '</comment>');
+        }
         if (!empty($r['hostWafSizes'])) {
             $output->writeln('Hosting server 403 page sizes: ' . implode(', ', $r['hostWafSizes']));
         }

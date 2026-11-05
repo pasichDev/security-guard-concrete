@@ -37,7 +37,8 @@ final class ScoreService implements ScoreServiceInterface
 
     public function add(string $ip, int $points, array $events): int
     {
-        $ip = IpRange::normalize($ip);
+        // Ключ — IpRange::subject(): IPv4 як є, IPv6 — /64 (як і для банів).
+        $ip = IpRange::subject($ip);
         if ($ip === '') {
             return 0;
         }
@@ -64,7 +65,7 @@ final class ScoreService implements ScoreServiceInterface
 
     public function reset(string $ip): void
     {
-        $this->db()->delete('SecurityGuardScores', ['ip' => IpRange::normalize($ip)]);
+        $this->db()->delete('SecurityGuardScores', ['ip' => IpRange::subject($ip)]);
     }
 
     public function list(int $limit = 50, int $offset = 0): array

@@ -75,12 +75,15 @@ runs install or update, clears the cache, checks the home page and rolls the fil
 fails):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pasichDev/security-guard-concrete/main/bin/server-update.sh -o ~/sg-update.sh
-bash ~/sg-update.sh            # latest main
-bash ~/sg-update.sh v1.1.0     # a tag or commit
+VERSION=v1.2.0
+curl -fsSL "https://raw.githubusercontent.com/pasichDev/security-guard-concrete/${VERSION}/bin/server-update.sh" -o ~/sg-update.sh
+bash ~/sg-update.sh "${VERSION}"                     # without an argument: the newest vX.Y.Z tag
+EXPECTED_SHA=<commit sha> bash ~/sg-update.sh v1.2.0  # refuse if the tag doesn't point at this commit
 ```
 
-Variables: `SITE_ROOT` (default `~/public_html`), `PHP`, `SITE_URL`. Back up the database
+Variables: `SITE_ROOT` (default `~/public_html`), `PHP`, `SITE_URL`, `EXPECTED_SHA`, `REQUIRE_SIGNED=1`.
+Exit codes: 0 done, 1 error (files restored if they had been swapped), 2 another run in progress,
+3 installed but the home-page check failed (files kept — the database is already updated). Back up the database
 before updating — schema changes are not rolled back.
 
 **Manually:**
@@ -103,9 +106,9 @@ before updating — schema changes are not rolled back.
 ## Cron (hosting-log import and cleanup)
 
 ```cron
-15 * * * *  php /path/to/site/concrete/bin/concrete5 security-guard:ingest  >/dev/null 2>&1
-30 3 * * *  php /path/to/site/concrete/bin/concrete5 security-guard:cleanup >/dev/null 2>&1
-30 4 * * 1  php /path/to/site/concrete/bin/concrete5 security-guard:update-ranges >/dev/null 2>&1
+15 * * * *    php /path/to/site/concrete/bin/concrete5 security-guard:ingest        >/dev/null 2>&1
+*/15 * * * *  php /path/to/site/concrete/bin/concrete5 security-guard:cleanup       >/dev/null 2>&1
+30 4 * * 1    php /path/to/site/concrete/bin/concrete5 security-guard:update-ranges >/dev/null 2>&1
 ```
 
 On cPanel with CloudLinux use the full PHP path, e.g. `/opt/alt/php82/usr/bin/php`.
