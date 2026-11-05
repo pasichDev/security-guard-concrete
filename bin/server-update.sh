@@ -50,9 +50,14 @@ VERSION="$(sed -n "s/.*pkgVersion = '\([^']*\)'.*/\1/p" "${SRC}/controller.php")
 echo "  версія ${VERSION}, коміт ${COMMIT}"
 
 echo "→ перевірка синтаксису PHP"
-while IFS= read -r -d '' f; do
-  "$PHP" -l "$f" >/dev/null || { echo "Синтаксична помилка: $f" >&2; exit 1; }
-done < <(find "${SRC}" -name '*.php' -not -path '*/tests/*' -not -path '*/.git/*' -print0)
+# Без process substitution: на CageFS-хостингах немає /dev/fd.
+LINT_FAILED="$(find "${SRC}" -name '*.php' -not -path '*/tests/*' -not -path '*/.git/*' \
+  -exec sh -c 'for f do "$0" -l "$f" >/dev/null 2>&1 || echo "$f"; done' "$PHP" {} +)"
+if [ -n "${LINT_FAILED}" ]; then
+  echo "Синтаксичні помилки:" >&2
+  echo "${LINT_FAILED}" >&2
+  exit 1
+fi
 
 # Тимчасові й попередні копії — поза packages/: Concrete сканує цю теку, і друга
 # тека з тим самим класом контролера зламала б сторінку «Extend Concrete».
