@@ -75,10 +75,10 @@
 повертає попередні файли, якщо щось пішло не так):
 
 ```bash
-VERSION=v1.2.0
+VERSION=v1.2.1
 curl -fsSL "https://raw.githubusercontent.com/pasichDev/security-guard-concrete/${VERSION}/bin/server-update.sh" -o ~/sg-update.sh
 bash ~/sg-update.sh "${VERSION}"                     # без аргументу — найновіший тег vX.Y.Z
-EXPECTED_SHA=<sha коміту> bash ~/sg-update.sh v1.2.0  # відмовитися, якщо тег вказує на інший коміт
+EXPECTED_SHA=<sha коміту> bash ~/sg-update.sh v1.2.1  # відмовитися, якщо тег вказує на інший коміт
 ```
 
 Змінні: `SITE_ROOT` (за замовчуванням `~/public_html`), `PHP`, `SITE_URL`, `EXPECTED_SHA`, `REQUIRE_SIGNED=1`.

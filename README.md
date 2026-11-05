@@ -75,10 +75,10 @@ runs install or update, clears the cache, checks the home page and rolls the fil
 fails):
 
 ```bash
-VERSION=v1.2.0
+VERSION=v1.2.1
 curl -fsSL "https://raw.githubusercontent.com/pasichDev/security-guard-concrete/${VERSION}/bin/server-update.sh" -o ~/sg-update.sh
 bash ~/sg-update.sh "${VERSION}"                     # without an argument: the newest vX.Y.Z tag
-EXPECTED_SHA=<commit sha> bash ~/sg-update.sh v1.2.0  # refuse if the tag doesn't point at this commit
+EXPECTED_SHA=<commit sha> bash ~/sg-update.sh v1.2.1  # refuse if the tag doesn't point at this commit
 ```
 
 Variables: `SITE_ROOT` (default `~/public_html`), `PHP`, `SITE_URL`, `EXPECTED_SHA`, `REQUIRE_SIGNED=1`.
