@@ -6,9 +6,9 @@ declare(strict_types=1);
 namespace PasichDev\SecurityGuard\Logs;
 
 /**
- * Класифікація «як у ручному звіті» за 1.10–5.11.2026: атака — запит, URL якого
- * відповідає одному регексу (без урахування регістру). Потрібна лише для звірки
- * з тим звітом; основна класифікація — RuleSetClassifier.
+ * Спрощена класифікація для звірки з ручними підрахунками за логами: атака —
+ * запит, URL якого відповідає одному регексу (без урахування регістру).
+ * Основна класифікація — RuleSetClassifier.
  */
 final class ReportClassifier implements AttackClassifierInterface
 {

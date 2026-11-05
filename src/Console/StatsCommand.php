@@ -19,7 +19,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Таблиця денної статистики з бази — для звірки з ручними підрахунками.
- * --report-compat показує цифри за методикою ручного звіту (регекс по URL,
+ * --report-compat показує цифри за спрощеною методикою ручних підрахунків (регекс по URL,
  * «login» у POST-запиті з відповіддю 200/400), які зберігаються в breakdown.report.
  */
 final class StatsCommand extends Command
@@ -32,7 +32,7 @@ final class StatsCommand extends Command
             ->setDescription('Print the Security Guard daily statistics imported from the hosting logs')
             ->addOption('from', null, InputOption::VALUE_REQUIRED, 'First day, YYYY-MM-DD (default: 30 days ago)')
             ->addOption('to', null, InputOption::VALUE_REQUIRED, 'Last day, YYYY-MM-DD (default: today)')
-            ->addOption('report-compat', null, InputOption::VALUE_NONE, 'Show attack and failed-login figures counted like the November 2026 manual report')
+            ->addOption('report-compat', null, InputOption::VALUE_NONE, 'Also show attack and failed-login figures counted with the simple URL-regex method (report compatibility)')
             ->addOption('json', null, InputOption::VALUE_NONE, 'Print the range summary as JSON');
     }
 
