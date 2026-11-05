@@ -3,9 +3,9 @@
 
 /*
  * Генерує синтетичні логи cPanel у tests/fixtures/logs/ (каталог не в git):
- *   home/logs/example.test-ssl_log-Oct-2026.gz  — архів з двох склеєних gzip-членів
- *   home/access-logs/example.test-ssl_log       — живий лог; його початок перекривається з кінцем архіву
- *   home/access-logs/example.test               — http-потік (окремий потік, не дедуплікується з https)
+ *   home/logs/example.org-ssl_log-Oct-2026.gz  — архів з двох склеєних gzip-членів
+ *   home/access-logs/example.org-ssl_log       — живий лог; його початок перекривається з кінцем архіву
+ *   home/access-logs/example.org               — http-потік (окремий потік, не дедуплікується з https)
  *   expected.json                               — правильні цифри по днях (Europe/Kyiv)
  * Покриває: перекриття при ротації, gz, биті рядки, межу доби в часовому поясі,
  * законні однакові рядки в одну секунду, виключену IP.
@@ -17,7 +17,7 @@ $out = $argv[1] ?? dirname(__DIR__) . '/fixtures/logs';
 $home = $out . '/home';
 @mkdir($home . '/logs', 0777, true);
 @mkdir($home . '/access-logs', 0777, true);
-foreach ([$home . '/logs/example.test-ssl_log-Oct-2026.gz', $home . '/access-logs/example.test-ssl_log', $home . '/access-logs/example.test'] as $f) {
+foreach ([$home . '/logs/example.org-ssl_log-Oct-2026.gz', $home . '/access-logs/example.org-ssl_log', $home . '/access-logs/example.org'] as $f) {
     @unlink($f);
 }
 
@@ -122,7 +122,7 @@ foreach ($requests as $q) {
     }
 }
 // Два gzip-члени в одному файлі (cPanel дописує архів щодня).
-$gz = $home . '/logs/example.test-ssl_log-Oct-2026.gz';
+$gz = $home . '/logs/example.org-ssl_log-Oct-2026.gz';
 file_put_contents($gz, gzencode(implode("\n", $arch1) . "\n"));
 file_put_contents($gz, gzencode(implode("\n", $arch2) . "\n"), FILE_APPEND);
 
@@ -130,8 +130,8 @@ file_put_contents($gz, gzencode(implode("\n", $arch2) . "\n"), FILE_APPEND);
 $garbage = ['garbage line', '', "\x00\x01\x02binary", '1.2.3.4 - - [03/Oct/2026:10:0', '5.6.7.8 - - [99/Foo/2026:10:00:00 +0300] "GET / HTTP/1.1" 200 1'];
 array_splice($live, 10, 0, $garbage);
 $partial = $fmt($end - 5, '203.0.113.1', 'GET /partial HTTP/1.1', 200, 1, $uas[0]);
-file_put_contents($home . '/access-logs/example.test-ssl_log', implode("\n", $live) . "\n" . $partial);
-file_put_contents($home . '/access-logs/example.test', implode("\n", $httpLines) . "\n");
+file_put_contents($home . '/access-logs/example.org-ssl_log', implode("\n", $live) . "\n" . $partial);
+file_put_contents($home . '/access-logs/example.org', implode("\n", $httpLines) . "\n");
 
 // Очікувані цифри: кожен логічний запит один раз (крім недописаного рядка).
 $expected = [];

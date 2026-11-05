@@ -65,6 +65,9 @@ EOT
             'Files: %d, new lines: %d, days recomputed: %d, pending: %d, duplicate lines skipped: %d, malformed lines: %d',
             $r['files'], $r['lines'], count($r['days']), $r['pending'] ?? 0, $r['deduplicated'] ?? 0, $r['malformed'] ?? 0
         ));
+        if (!empty($r['hostWafSizes'])) {
+            $output->writeln('Hosting server 403 page sizes: ' . implode(', ', $r['hostWafSizes']));
+        }
         if ($r['days'] && $output->isVerbose()) {
             $output->writeln('Days: ' . implode(', ', $r['days']));
         }

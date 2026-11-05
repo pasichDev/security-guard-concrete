@@ -1,0 +1,2492 @@
+# Security Guard for Concrete CMS — es_ES translation.
+# Copyright (c) 2026 Andrii Pasichnyk. All rights reserved. See LICENSE.
+msgid ""
+msgstr ""
+"Project-Id-Version: security_guard\n"
+"Language: es_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: controllers/single_page/dashboard/security_guard/support/ip_range.php:48
+#: controllers/single_page/dashboard/security_guard/support/ip_range.php:58
+#, php-format
+msgid "\"%s\" is not a valid CIDR range."
+msgstr "«%s» no es un rango CIDR válido."
+
+#: controllers/single_page/dashboard/security_guard/blocks.php:65
+#: controllers/single_page/dashboard/security_guard/scores.php:54
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:222
+#, php-format
+msgid "\"%s\" is not a valid IP address."
+msgstr "«%s» no es una dirección IP válida."
+
+#: controllers/single_page/dashboard/security_guard/support/ip_range.php:34
+#, php-format
+msgid "\"%s\" is not a valid prefix."
+msgstr "«%s» no es un prefijo válido."
+
+#: controllers/single_page/dashboard/security_guard/support/ip_range.php:68
+#, php-format
+msgid "\"%s\" is not an IP address, prefix or CIDR range."
+msgstr "«%s» no es una dirección IP, un prefijo ni un rango CIDR."
+
+#: controllers/single_page/dashboard/security_guard/support/ip_range.php:38
+#, php-format
+msgid "\"%s\" is too broad."
+msgstr "«%s» es demasiado amplio."
+
+#: controllers/single_page/dashboard/security_guard/support/ip_range.php:51
+#: controllers/single_page/dashboard/security_guard/support/ip_range.php:61
+#, php-format
+msgid "\"%s\" is too broad: the smallest allowed mask is /%s."
+msgstr "«%s» es demasiado amplio: la máscara mínima permitida es /%s."
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:80
+#: controllers/single_page/dashboard/security_guard/support/format.php:92
+#, php-format
+msgid "%d d"
+msgstr "%d d"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:78
+#: controllers/single_page/dashboard/security_guard/support/format.php:95
+#, php-format
+msgid "%d h"
+msgstr "%d h"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:76
+#: controllers/single_page/dashboard/security_guard/support/format.php:98
+#, php-format
+msgid "%d min"
+msgstr "%d min"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:74
+#: controllers/single_page/dashboard/security_guard/support/format.php:101
+#, php-format
+msgid "%d s"
+msgstr "%d s"
+
+#: src/Audit/Checklist.php:235
+#, php-format
+msgid "%s PHP files found in the uploads directory. Uploads must never contain executable code — this is a typical sign of a web shell."
+msgstr "Se han encontrado %s archivos PHP en el directorio de subidas. Las subidas nunca deben contener código ejecutable: es un signo típico de una web shell."
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:83
+#, php-format
+msgid "%s ago"
+msgstr "hace %s"
+
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:259
+#, php-format
+msgid "%s belongs to the search engine crawler %s. Confirm the ban explicitly below."
+msgstr "%s pertenece al rastreador del buscador %s. Confirme el bloqueo explícitamente abajo."
+
+#: src/Audit/Checklist.php:261
+#, php-format
+msgid "%s files or directories can be modified by any user of the server."
+msgstr "%s archivos o directorios pueden ser modificados por cualquier usuario del servidor."
+
+#: controllers/single_page/dashboard/security_guard/whitelist.php:84
+#, php-format
+msgid "%s is added to the whitelist."
+msgstr "%s se ha añadido a la lista blanca."
+
+#: controllers/single_page/dashboard/security_guard/whitelist.php:73
+#, php-format
+msgid "%s is already in the whitelist."
+msgstr "%s ya está en la lista blanca."
+
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:279
+#, php-format
+msgid "%s is blocked permanently."
+msgstr "%s está bloqueada de forma permanente."
+
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:280
+#, php-format
+msgid "%s is blocked."
+msgstr "%s está bloqueada."
+
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:251
+#, php-format
+msgid "%s is in the whitelist. Remove it from the whitelist first."
+msgstr "%s está en la lista blanca. Quítela primero de la lista blanca."
+
+#: src/Audit/Checklist.php:199
+#, php-format
+msgid "%s is readable by everyone (%s)"
+msgstr "%s es legible por todos (%s)"
+
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:82
+#, php-format
+msgid "%s is unavailable: %s"
+msgstr "%s no está disponible: %s"
+
+#: controllers/single_page/dashboard/security_guard/blocks.php:74
+#, php-format
+msgid "%s is unblocked."
+msgstr "%s está desbloqueada."
+
+#: src/Audit/Checklist.php:194
+#, php-format
+msgid "%s is writable by everyone (%s)"
+msgstr "%s es modificable por todos (%s)"
+
+#: src/Audit/Checklist.php:445
+#, php-format
+msgid "%s s"
+msgstr "%s s"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:186
+#, php-format
+msgid "%s: \"%s\" is not a duration. Use seconds or a number with s, m, h, d or w (for example 1h, 24h, 7d)."
+msgstr "%s: «%s» no es una duración. Indique segundos o un número con s, m, h, d o w (por ejemplo 1h, 24h, 7d)."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:239
+#: controllers/single_page/dashboard/security_guard/settings.php:248
+#, php-format
+msgid "%s: \"%s\" is not a local file path."
+msgstr "%s: «%s» no es una ruta de archivo local."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:256
+#, php-format
+msgid "%s: \"%s\" is not a response size in bytes."
+msgstr "%s: «%s» no es un tamaño de respuesta en bytes."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:281
+#, php-format
+msgid "%s: \"%s\" is not a two-letter country code."
+msgstr "%s: «%s» no es un código de país de dos letras."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:269
+#, php-format
+msgid "%s: \"%s\" is not a valid e-mail address."
+msgstr "%s: «%s» no es una dirección de correo válida."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:229
+#, php-format
+msgid "%s: \"%s\" must be a path starting with \"/\" without spaces."
+msgstr "%s: «%s» debe ser una ruta que empiece por «/», sin espacios."
+
+#: controllers/single_page/dashboard/security_guard/traffic.php:181
+#, php-format
+msgid "%s: %s ranges updated"
+msgstr "%s: %s rangos actualizados"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:286
+#, php-format
+msgid "%s: blocking UA would block your own visitors."
+msgstr "%s: bloquear UA bloquearía a sus propios visitantes."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:193
+#, php-format
+msgid "%s: each step must be between 1 minute and 10 years."
+msgstr "%s: cada paso debe estar entre 1 minuto y 10 años."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:98
+#, php-format
+msgid "%s: enter a whole number from %s to %s."
+msgstr "%s: introduzca un número entero de %s a %s."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:200
+#, php-format
+msgid "%s: enter from 1 to 10 durations."
+msgstr "%s: indique de 1 a 10 duraciones."
+
+#: controllers/single_page/dashboard/security_guard/traffic.php:184
+#, php-format
+msgid "%s: unchanged"
+msgstr "%s: sin cambios"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:214
+#, php-format
+msgid "%s: use 16–128 Latin letters, digits, \"-\" or \"_\", or leave it empty."
+msgstr "%s: use de 16 a 128 letras latinas, cifras, «-» o «_», o déjelo vacío."
+
+#: elements/pagination.php:30
+#, php-format
+msgid "%s–%s of %s"
+msgstr "%s–%s de %s"
+
+#: src/Audit/Checklist.php:228
+#: src/Audit/Checklist.php:254
+#, php-format
+msgid "(partial scan: %s files checked before the time limit)"
+msgstr "(análisis parcial: %s archivos comprobados antes del límite de tiempo)"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:358
+msgid ".php requests"
+msgstr "Peticiones .php"
+
+#: single_pages/dashboard/security_guard/overview.php:43
+#: controllers/single_page/dashboard/security_guard/blocks.php:138
+msgid "1 hour"
+msgstr "1 hora"
+
+#: controllers/single_page/dashboard/security_guard/blocks.php:142
+msgid "1 year"
+msgstr "1 año"
+
+#: single_pages/dashboard/security_guard/overview.php:44
+#: controllers/single_page/dashboard/security_guard/blocks.php:139
+#: controllers/single_page/dashboard/security_guard/whitelist.php:119
+msgid "24 hours"
+msgstr "24 horas"
+
+#: single_pages/dashboard/security_guard/overview.php:46
+#: elements/period_filter.php:11
+#: controllers/single_page/dashboard/security_guard/blocks.php:141
+msgid "30 days"
+msgstr "30 días"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:335
+msgid "3600 = 1 hour."
+msgstr "3600 = 1 hora."
+
+#: single_pages/dashboard/security_guard/settings.php:101
+msgid "403 Forbidden"
+msgstr "403 Forbidden"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:324
+msgid "403 is the standard answer; 404 or 410 hides the fact that a firewall is present."
+msgstr "403 es la respuesta estándar; 404 o 410 ocultan que hay un cortafuegos."
+
+#: single_pages/dashboard/security_guard/settings.php:101
+msgid "404 Not Found"
+msgstr "404 Not Found"
+
+#: single_pages/dashboard/security_guard/settings.php:101
+msgid "410 Gone"
+msgstr "410 Gone"
+
+#: single_pages/dashboard/security_guard/overview.php:45
+#: elements/period_filter.php:11
+#: controllers/single_page/dashboard/security_guard/blocks.php:140
+msgid "7 days"
+msgstr "7 días"
+
+#: elements/period_filter.php:11
+#: controllers/single_page/dashboard/security_guard/whitelist.php:122
+msgid "90 days"
+msgstr "90 días"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:348
+#: controllers/single_page/dashboard/security_guard/support/format.php:147
+msgid "AI crawlers"
+msgstr "Rastreadores de IA"
+
+#: src/Http/GuardMiddleware.php:275
+msgid "Access Denied"
+msgstr "Acceso denegado"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:377
+msgid "Access log files"
+msgstr "Archivos de registro de acceso"
+
+#: src/Http/GuardMiddleware.php:276
+msgid "Access to this page from your network is not allowed."
+msgstr "No se permite el acceso a esta página desde su red."
+
+#: single_pages/dashboard/security_guard/overview.php:293
+#: single_pages/dashboard/security_guard/events.php:34
+#: single_pages/dashboard/security_guard/events.php:77
+msgid "Action"
+msgstr "Acción"
+
+#: single_pages/dashboard/security_guard/blocks.php:91
+msgid "Active"
+msgstr "Activos"
+
+#: controller.php
+msgid "Active and past IP blocks"
+msgstr "Bloqueos de IP activos y anteriores"
+
+#: single_pages/dashboard/security_guard/overview.php:110
+msgid "Active bans"
+msgstr "Bloqueos activos"
+
+#: single_pages/dashboard/security_guard/whitelist.php:70
+msgid "Add"
+msgstr "Añadir"
+
+#: single_pages/dashboard/security_guard/whitelist.php:53
+msgid "Add an address"
+msgstr "Añadir una dirección"
+
+#: src/Audit/Checklist.php:357
+msgid "Add the headers in .htaccess with \"Header always set …\" (mod_headers). Introduce Content-Security-Policy carefully: first as Content-Security-Policy-Report-Only."
+msgstr "Añada las cabeceras en .htaccess con «Header always set …» (mod_headers). Introduzca Content-Security-Policy con cuidado: primero como Content-Security-Policy-Report-Only."
+
+#: single_pages/dashboard/security_guard/honeypot.php:30
+msgid "Add your own"
+msgstr "Añadir las suyas"
+
+#: single_pages/dashboard/security_guard/whitelist.php:45
+msgid "Added"
+msgstr "Añadida"
+
+#: single_pages/dashboard/security_guard/whitelist.php:45
+msgid "Address or range"
+msgstr "Dirección o rango"
+
+#: src/Login/LoginGuard.php:75
+#, php-format
+msgid "Administrator %s signed in from a new IP address %s."
+msgstr "El administrador %s inició sesión desde una nueva dirección IP %s."
+
+#: src/Login/LoginGuard.php:66
+#, php-format
+msgid "Administrator sign-in: %s"
+msgstr "Inicio de sesión de administrador: %s"
+
+#: src/Notify/AlertService.php:122
+msgid "Administrator signed in from a new IP address"
+msgstr "Un administrador inició sesión desde una nueva dirección IP"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:366
+msgid "Alert about an administrator login from a new IP"
+msgstr "Avisar cuando un administrador inicie sesión desde una IP nueva"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:329
+msgid "Alert e-mails"
+msgstr "Correos para alertas"
+
+#: single_pages/dashboard/security_guard/overview.php:371
+#: controllers/single_page/dashboard/security_guard/overview.php:189
+#: controllers/single_page/dashboard/security_guard/overview.php:267
+msgid "Alerts"
+msgstr "Alertas"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:330
+msgid "Alerts of one type no more often than, minutes"
+msgstr "Alertas del mismo tipo como máximo cada, minutos"
+
+#: single_pages/dashboard/security_guard/events.php:27
+#: single_pages/dashboard/security_guard/events.php:36
+msgid "All"
+msgstr "Todos"
+
+#: controllers/single_page/dashboard/security_guard/overview.php:269
+msgid "All alerts are marked as read."
+msgstr "Todas las alertas se han marcado como leídas."
+
+#: single_pages/dashboard/security_guard/overview.php:340
+msgid "All events"
+msgstr "Todos los eventos"
+
+#: src/Audit/Checklist.php:318
+msgid "All probed files answer 403/404."
+msgstr "Todos los archivos probados responden 403/404."
+
+#: src/Audit/Checklist.php:351
+msgid "All recommended headers are sent."
+msgstr "Se envían todas las cabeceras recomendadas."
+
+#: single_pages/dashboard/security_guard/traffic.php:28
+msgid "All requests"
+msgstr "Todas las peticiones"
+
+#: single_pages/dashboard/security_guard/overview.php:200
+#: single_pages/dashboard/security_guard/overview.php:203
+#: single_pages/dashboard/security_guard/traffic.php:99
+msgid "All requests by day"
+msgstr "Todas las peticiones por día"
+
+#: src/Logs/LogIngest.php:50
+msgid "Another log import is already running."
+msgstr "Ya hay otra importación de registros en curso."
+
+#: controllers/single_page/dashboard/security_guard/overview.php:291
+#, php-format
+msgid "Attack signatures (%s of %s groups)"
+msgstr "Firmas de ataques (%s de %s grupos)"
+
+#: single_pages/dashboard/security_guard/traffic.php:115
+#: single_pages/dashboard/security_guard/traffic.php:202
+msgid "Attack types"
+msgstr "Tipos de ataque"
+
+#: single_pages/dashboard/security_guard/traffic.php:29
+msgid "Attacks"
+msgstr "Ataques"
+
+#: single_pages/dashboard/security_guard/traffic.php:30
+msgid "Attacks (report method)"
+msgstr "Ataques (método del informe)"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:326
+msgid "Attacks and bans are saved to the event log."
+msgstr "Los ataques y bloqueos se guardan en el registro de eventos."
+
+#: elements/dashboard_card.php:63
+msgid "Attacks are only logged. Switch to enforce mode after checking the log."
+msgstr "Los ataques solo se registran. Active el modo de bloqueo después de revisar el registro."
+
+#: single_pages/dashboard/security_guard/traffic.php:103
+#: single_pages/dashboard/security_guard/traffic.php:104
+msgid "Attacks by day"
+msgstr "Ataques por día"
+
+#: single_pages/dashboard/security_guard/overview.php:180
+#: single_pages/dashboard/security_guard/overview.php:184
+#: single_pages/dashboard/security_guard/overview.php:186
+msgid "Attacks by day — firewall"
+msgstr "Ataques por día — cortafuegos"
+
+#: single_pages/dashboard/security_guard/overview.php:193
+#: single_pages/dashboard/security_guard/overview.php:196
+msgid "Attacks by day — hosting logs"
+msgstr "Ataques por día — registros del alojamiento"
+
+#: single_pages/dashboard/security_guard/overview.php:95
+msgid "Attacks today"
+msgstr "Ataques hoy"
+
+#: single_pages/dashboard/security_guard/overview.php:105
+msgid "Attacks, 30 days"
+msgstr "Ataques, 30 días"
+
+#: single_pages/dashboard/security_guard/overview.php:100
+msgid "Attacks, 7 days"
+msgstr "Ataques, 7 días"
+
+#: single_pages/dashboard/security_guard/blocks.php:112
+msgid "Attempts"
+msgstr "Intentos"
+
+#: single_pages/dashboard/security_guard/whitelist.php:94
+msgid "Automatic trust after administrator login is disabled."
+msgstr "La confianza automática tras el inicio de sesión de un administrador está desactivada."
+
+#: single_pages/dashboard/security_guard/whitelist.php:93
+msgid "Automatically trusted"
+msgstr "De confianza automática"
+
+#: single_pages/dashboard/security_guard/scores.php:76
+#: single_pages/dashboard/security_guard/overview.php:307
+#: controllers/single_page/dashboard/security_guard/support/format.php:171
+msgid "Banned"
+msgstr "Bloqueada"
+
+#: single_pages/dashboard/security_guard/settings.php:25
+msgid "Behaviour"
+msgstr "Comportamiento"
+
+#: controller.php
+#: elements/nav.php:19
+msgid "Behaviour Scores"
+msgstr "Puntuaciones de comportamiento"
+
+#: controllers/single_page/dashboard/security_guard/scores.php:21
+#: controllers/single_page/dashboard/security_guard/scores.php:62
+msgid "Behaviour scores"
+msgstr "Puntuaciones de comportamiento"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:360
+#: controllers/single_page/dashboard/security_guard/overview.php:296
+msgid "Behaviour scoring"
+msgstr "Puntuación de comportamiento"
+
+#: single_pages/dashboard/security_guard/scores.php:25
+msgid "Behaviour scoring is disabled in the settings."
+msgstr "La puntuación de comportamiento está desactivada en los ajustes."
+
+#: single_pages/dashboard/security_guard/blocks.php:71
+#: single_pages/dashboard/security_guard/scores.php:82
+#: single_pages/dashboard/security_guard/overview.php:323
+msgid "Block"
+msgstr "Bloquear"
+
+#: single_pages/dashboard/security_guard/scores.php:78
+#: single_pages/dashboard/security_guard/overview.php:313
+#, php-format
+msgid "Block %s?"
+msgstr "¿Bloquear %s?"
+
+#: single_pages/dashboard/security_guard/blocks.php:51
+msgid "Block an IP address"
+msgstr "Bloquear una dirección IP"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:372
+msgid "Block countries"
+msgstr "Bloquear países"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:351
+msgid "Block fake search bots"
+msgstr "Bloquear bots de buscadores falsos"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:370
+msgid "Block the top IPs of a spike automatically"
+msgstr "Bloquear automáticamente las IP principales de un pico"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:170
+msgid "Blocked"
+msgstr "Bloqueado"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:157
+msgid "Blocked IP"
+msgstr "IP bloqueada"
+
+#: controller.php
+#: elements/nav.php:16
+msgid "Blocked IPs"
+msgstr "IP bloqueadas"
+
+#: single_pages/dashboard/security_guard/overview.php:121
+#: single_pages/dashboard/security_guard/traffic.php:36
+msgid "Blocked by the server (before PHP)"
+msgstr "Rechazado por el servidor (antes de PHP)"
+
+#: single_pages/dashboard/security_guard/traffic.php:109
+#: single_pages/dashboard/security_guard/traffic.php:112
+msgid "Blocked by the server (before PHP) by day"
+msgstr "Rechazado por el servidor (antes de PHP), por día"
+
+#: single_pages/dashboard/security_guard/settings.php:20
+msgid "Blocking"
+msgstr "Bloqueo"
+
+#: controllers/single_page/dashboard/security_guard/blocks.php:29
+#: controllers/single_page/dashboard/security_guard/blocks.php:73
+#: controllers/single_page/dashboard/security_guard/blocks.php:95
+msgid "Blocks"
+msgstr "Bloqueos"
+
+#: single_pages/dashboard/security_guard/traffic.php:267
+msgid "Bot"
+msgstr "Bot"
+
+#: controllers/single_page/dashboard/security_guard/traffic.php:107
+msgid "Bot range update"
+msgstr "Actualización de rangos de bots"
+
+#: controllers/single_page/dashboard/security_guard/traffic.php:115
+msgid "Bot ranges updated."
+msgstr "Rangos de bots actualizados."
+
+#: single_pages/dashboard/security_guard/overview.php:311
+#: single_pages/dashboard/security_guard/traffic.php:56
+#, php-format
+msgid "Bot: %s"
+msgstr "Bot: %s"
+
+#: single_pages/dashboard/security_guard/settings.php:22
+#: single_pages/dashboard/security_guard/traffic.php:190
+msgid "Bots"
+msgstr "Bots"
+
+#: single_pages/dashboard/security_guard/overview.php:42
+#: controllers/single_page/dashboard/security_guard/blocks.php:137
+msgid "By escalation rules"
+msgstr "Según las reglas de escalado"
+
+#: single_pages/dashboard/security_guard/overview.php:350
+#: single_pages/dashboard/security_guard/events.php:25
+#: single_pages/dashboard/security_guard/events.php:75
+msgid "Category"
+msgstr "Categoría"
+
+#: single_pages/dashboard/security_guard/overview.php:145
+msgid "Change settings"
+msgstr "Cambiar ajustes"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:349
+msgid "Check POST data"
+msgstr "Comprobar los datos POST"
+
+#: src/Audit/Checklist.php:388
+msgid "Check for security releases regularly in Dashboard → System & Settings → Update Concrete."
+msgstr "Compruebe regularmente las actualizaciones de seguridad en Panel → Sistema y ajustes → Actualizar Concrete."
+
+#: single_pages/dashboard/security_guard/checklist.php:38
+msgid "Checking…"
+msgstr "Comprobando…"
+
+#: single_pages/dashboard/security_guard/checklist.php:34
+#, php-format
+msgid "Checks file permissions, PHP files among uploads, publicly reachable sensitive files, security headers, versions and Concrete settings. File scans and HTTP requests to %s take up to a minute, so the check runs only on request."
+msgstr "Comprueba los permisos de archivos, los archivos PHP entre las subidas, los archivos sensibles accesibles públicamente, las cabeceras de seguridad, las versiones y los ajustes de Concrete. El análisis de archivos y las peticiones HTTP a %s tardan hasta un minuto, por eso la comprobación solo se ejecuta bajo petición."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:340
+msgid "Code execution attempts"
+msgstr "Intentos de ejecución de código"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:336
+msgid "Comma-separated durations for the 1st, 2nd, 3rd… ban: seconds or 1h, 24h, 7d, 30d."
+msgstr "Duraciones del 1.er, 2.º, 3.er… bloqueo separadas por comas: segundos o 1h, 24h, 7d, 30d."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:375
+msgid "Comma-separated response sizes that identify the server 403 page. Empty = detect automatically."
+msgstr "Tamaños de respuesta separados por comas que identifican la página 403 del servidor. Vacío = detectar automáticamente."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:329
+msgid "Comma-separated. Leave empty to disable e-mail alerts."
+msgstr "Separados por comas. Déjelo vacío para desactivar las alertas por correo."
+
+#: src/Audit/Checklist.php:380
+#, php-format
+msgid "Concrete CMS %s."
+msgstr "Concrete CMS %s."
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:148
+msgid "Concrete CMS exploits"
+msgstr "Exploits de Concrete CMS"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:159
+msgid "Concrete CMS internals"
+msgstr "Archivos internos de Concrete CMS"
+
+#: src/Audit/Checklist.php:382
+#: src/Audit/Checklist.php:387
+msgid "Concrete CMS version"
+msgstr "Versión de Concrete CMS"
+
+#: src/Audit/Checklist.php:433
+msgid "Concrete failed-login IP ban"
+msgstr "Bloqueo de IP de Concrete por inicios de sesión fallidos"
+
+#: src/Audit/Checklist.php:207
+msgid "Configuration files (database password) are accessible to other users of the server."
+msgstr "Los archivos de configuración (con la contraseña de la base de datos) son accesibles para otros usuarios del servidor."
+
+#: src/Audit/Checklist.php:203
+msgid "Configuration files are not accessible to other system users."
+msgstr "Los archivos de configuración no son accesibles para otros usuarios del sistema."
+
+#: single_pages/dashboard/security_guard/traffic.php:286
+msgid "Configure"
+msgstr "Configurar"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:350
+msgid "Confirms Googlebot, Bingbot and others by reverse and forward DNS."
+msgstr "Confirma Googlebot, Bingbot y otros mediante DNS inverso y directo."
+
+#: controllers/single_page/dashboard/security_guard/whitelist.php:86
+#, php-format
+msgid "Could not add %s to the whitelist."
+msgstr "No se pudo añadir %s a la lista blanca."
+
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:282
+#, php-format
+msgid "Could not block %s."
+msgstr "No se pudo bloquear %s."
+
+#: controllers/single_page/dashboard/security_guard/overview.php:230
+msgid "Could not change the mode."
+msgstr "No se pudo cambiar el modo."
+
+#: controllers/single_page/dashboard/security_guard/blocks.php:102
+msgid "Could not determine or unblock your IP address."
+msgstr "No se pudo determinar ni desbloquear su dirección IP."
+
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:355
+msgid "Could not read the hosting logs."
+msgstr "No se pudieron leer los registros del alojamiento."
+
+#: controllers/single_page/dashboard/security_guard/blocks.php:74
+#, php-format
+msgid "Could not unblock %s."
+msgstr "No se pudo desbloquear %s."
+
+#: controllers/single_page/dashboard/security_guard/traffic.php:110
+#: controllers/single_page/dashboard/security_guard/traffic.php:112
+msgid "Could not update the bot ranges."
+msgstr "No se pudieron actualizar los rangos de bots."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:374
+msgid "Count requests the server rejected before PHP"
+msgstr "Contar las peticiones rechazadas por el servidor antes de PHP"
+
+#: single_pages/dashboard/security_guard/overview.php:289
+#: controllers/single_page/dashboard/security_guard/events.php:59
+msgid "Country"
+msgstr "País"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:210
+msgid "Critical"
+msgstr "Crítico"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:338
+msgid "Cross-site scripting (XSS)"
+msgstr "Cross-site scripting (XSS)"
+
+#: single_pages/dashboard/security_guard/settings.php:27
+msgid "DDoS"
+msgstr "DDoS"
+
+#: src/Audit/Checklist.php:310
+msgid "Delete the files from the web root or deny access in .htaccess (for example: RedirectMatch 404 /\\.(env|git))."
+msgstr "Elimine los archivos de la raíz web o deniegue el acceso en .htaccess (por ejemplo: RedirectMatch 404 /\\.(env|git))."
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:172
+msgid "Denied (banned IP)"
+msgstr "Denegado (IP bloqueada)"
+
+#: src/Audit/Checklist.php:315
+msgid "Deny direct access to application/config and dot-files in .htaccess so that they answer 403/404."
+msgstr "Deniegue en .htaccess el acceso directo a application/config y a los archivos que empiezan por punto, para que respondan 403/404."
+
+#: single_pages/dashboard/security_guard/whitelist.php:45
+#: single_pages/dashboard/security_guard/whitelist.php:61
+msgid "Description"
+msgstr "Descripción"
+
+#: single_pages/dashboard/security_guard/checklist.php:58
+#, php-format
+msgid "Details (%s)"
+msgstr "Detalles (%s)"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:357
+msgid "Detect bursts of .php requests"
+msgstr "Detectar ráfagas de peticiones .php"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:371
+msgid "Detect the country of an IP"
+msgstr "Determinar el país de una IP"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:367
+msgid "Detect traffic spikes"
+msgstr "Detectar picos de tráfico"
+
+#: controller.php
+msgid "Detected attacks and actions taken"
+msgstr "Ataques detectados y medidas tomadas"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:346
+msgid "Direct requests to concrete/ and application/ code, old /tools/ URLs, the installer and version files. Editors never request these."
+msgstr "Peticiones directas al código de concrete/ y application/, URL antiguas de /tools/, el instalador y los archivos de versión. Los editores nunca las solicitan."
+
+#: elements/nav.php:27
+#: elements/dashboard_card.php:46
+msgid "Disabled"
+msgstr "Desactivado"
+
+#: src/Audit/Checklist.php:460
+msgid "Disabled: every visit runs PHP and the database, which makes overload (508) under bot traffic more likely."
+msgstr "Desactivada: cada visita ejecuta PHP y la base de datos, lo que hace más probable una sobrecarga (508) con tráfico de bots."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:378
+msgid "Do not count these IPs in statistics"
+msgstr "No contar estas IP en las estadísticas"
+
+#: src/Audit/Checklist.php:236
+msgid "Download the files for analysis, then delete them, change the passwords and check the access logs for requests to them."
+msgstr "Descargue los archivos para analizarlos, después elimínelos, cambie las contraseñas y busque en los registros de acceso las peticiones a ellos."
+
+#: single_pages/dashboard/security_guard/blocks.php:59
+#: single_pages/dashboard/security_guard/overview.php:317
+msgid "Duration"
+msgstr "Duración"
+
+#: controllers/single_page/dashboard/security_guard/overview.php:299
+msgid "E-mail alerts"
+msgstr "Alertas por correo"
+
+#: single_pages/dashboard/security_guard/scores.php:27
+#, php-format
+msgid "Each suspicious sign (empty user agent, no Accept-Language, POST without Referer, probing paths…) adds points. At %s points the IP is blocked. Points expire after %s."
+msgstr "Cada señal sospechosa (user agent vacío, sin Accept-Language, POST sin Referer, rutas de sondeo…) suma puntos. Con %s puntos la IP se bloquea. Los puntos caducan tras %s."
+
+#: single_pages/dashboard/security_guard/whitelist.php:107
+msgid "Edit"
+msgstr "Editar"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:325
+msgid "Emergency bypass token"
+msgstr "Token de acceso de emergencia"
+
+#: controllers/single_page/dashboard/security_guard/overview.php:300
+msgid "Emergency bypass token set"
+msgstr "Token de acceso de emergencia configurado"
+
+#: single_pages/dashboard/security_guard/settings.php:115
+msgid "Emergency link:"
+msgstr "Enlace de emergencia:"
+
+#: src/Audit/Checklist.php:372
+msgid "Enable a certificate (cPanel → SSL/TLS Status, AutoSSL) and set the canonical URL to https:// in Dashboard → System & Settings → URLs and Redirection."
+msgstr "Active un certificado (cPanel → SSL/TLS Status, AutoSSL) y configure la URL canónica con https:// en Panel → Sistema y ajustes → URL y redirecciones."
+
+#: src/Audit/Checklist.php:461
+msgid "Enable it in Dashboard → System & Settings → Optimization → Cache & Speed Settings."
+msgstr "Actívela en Panel → Sistema y ajustes → Optimización → Caché y velocidad."
+
+#: src/Audit/Checklist.php:438
+msgid "Enable it in Dashboard → System & Settings → Permissions & Access → IP Deny List. Security Guard adds escalation and alerts on top of it."
+msgstr "Actívelo en Panel → Sistema y ajustes → Permisos y acceso → Lista de IP denegadas. Security Guard añade escalado y alertas."
+
+#: src/Audit/Checklist.php:156
+msgid "Enable it in Security Guard → Settings."
+msgstr "Actívelo en Security Guard → Ajustes."
+
+#: src/Audit/Checklist.php:453
+msgid "Enabled for all pages."
+msgstr "Activada para todas las páginas."
+
+#: src/Audit/Checklist.php:456
+msgid "Enabled for pages whose blocks allow it."
+msgstr "Activada para las páginas cuyos bloques lo permiten."
+
+#: src/Audit/Checklist.php:444
+#, php-format
+msgid "Enabled: %s failed logins within %s s → ban for %s."
+msgstr "Activado: %s inicios de sesión fallidos en %s s → bloqueo durante %s."
+
+#: elements/nav.php:25
+#: elements/dashboard_card.php:44
+msgid "Enforce mode"
+msgstr "Modo de bloqueo"
+
+#: controllers/single_page/dashboard/security_guard/overview.php:290
+msgid "Enforce mode (attacks are blocked)"
+msgstr "Modo de bloqueo (los ataques se bloquean)"
+
+#: controllers/single_page/dashboard/security_guard/overview.php:227
+msgid "Enforce mode is on: attacks are now blocked."
+msgstr "El modo de bloqueo está activo: ahora los ataques se bloquean."
+
+#: src/Audit/Checklist.php:163
+msgid "Enforce mode: attacks are blocked."
+msgstr "Modo de bloqueo: los ataques se bloquean."
+
+#: single_pages/dashboard/security_guard/settings.php:96
+msgid "Enforce — block attacks"
+msgstr "Bloqueo — bloquear ataques"
+
+#: controllers/single_page/dashboard/security_guard/support/ip_range.php:24
+msgid "Enter an IP address, a prefix such as 203.0.113. or a CIDR range such as 203.0.113.0/24."
+msgstr "Introduzca una dirección IP, un prefijo como 203.0.113. o un rango CIDR como 203.0.113.0/24."
+
+#: controller.php
+#: single_pages/dashboard/security_guard/checklist.php:31
+msgid "Environment and configuration audit"
+msgstr "Auditoría del entorno y la configuración"
+
+#: src/Audit/Checklist.php:417
+msgid "Error details shown to visitors"
+msgstr "Detalles de errores mostrados a los visitantes"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:336
+msgid "Escalation of repeated bans"
+msgstr "Escalado de bloqueos repetidos"
+
+#: controller.php
+#: elements/nav.php:15
+msgid "Event Log"
+msgstr "Registro de eventos"
+
+#: single_pages/dashboard/security_guard/overview.php:280
+#: controllers/single_page/dashboard/security_guard/overview.php:40
+#: controllers/single_page/dashboard/security_guard/overview.php:56
+msgid "Event log"
+msgstr "Registro de eventos"
+
+#: single_pages/dashboard/security_guard/traffic.php:82
+#, php-format
+msgid "Excluded from statistics: %s"
+msgstr "Excluidas de las estadísticas: %s"
+
+#: single_pages/dashboard/security_guard/whitelist.php:45
+#: single_pages/dashboard/security_guard/whitelist.php:65
+msgid "Expires"
+msgstr "Caduca"
+
+#: single_pages/dashboard/security_guard/events.php:62
+msgid "Export CSV"
+msgstr "Exportar CSV"
+
+#: single_pages/dashboard/security_guard/overview.php:115
+#: single_pages/dashboard/security_guard/traffic.php:39
+#: controllers/single_page/dashboard/security_guard/settings.php:364
+msgid "Failed logins"
+msgstr "Inicios de sesión fallidos"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:156
+msgid "Fake search bot"
+msgstr "Bot de buscador falso"
+
+#: src/Audit/Checklist.php:242
+msgid "Files writable by everyone"
+msgstr "Archivos modificables por todos"
+
+#: single_pages/dashboard/security_guard/events.php:60
+msgid "Filter"
+msgstr "Filtrar"
+
+#: src/Audit/Checklist.php:384
+msgid "Finish the upgrade in Dashboard → System & Settings → Update Concrete."
+msgstr "Termine la actualización en Panel → Sistema y ajustes → Actualizar Concrete."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:322
+#: controllers/single_page/dashboard/security_guard/overview.php:289
+msgid "Firewall enabled"
+msgstr "Cortafuegos activado"
+
+#: single_pages/dashboard/security_guard/overview.php:219
+#: single_pages/dashboard/security_guard/overview.php:290
+msgid "Firewall log"
+msgstr "Registro del cortafuegos"
+
+#: src/Audit/Checklist.php:154
+msgid "Firewall mode"
+msgstr "Modo del cortafuegos"
+
+#: controller.php
+msgid "Firewall modules and thresholds"
+msgstr "Módulos y umbrales del cortafuegos"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:335
+msgid "First ban, seconds"
+msgstr "Primer bloqueo, segundos"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:378
+msgid "For example your own address, one per line."
+msgstr "Por ejemplo, su propia dirección; una por línea."
+
+#: single_pages/dashboard/security_guard/settings.php:132
+msgid "Found now:"
+msgstr "Encontrados ahora:"
+
+#: single_pages/dashboard/security_guard/events.php:47
+#: elements/period_filter.php:21
+msgid "From"
+msgstr "Desde"
+
+#: single_pages/dashboard/security_guard/whitelist.php:106
+msgid "From the settings"
+msgstr "Desde los ajustes"
+
+#: src/Audit/Checklist.php:450
+msgid "Full page cache"
+msgstr "Caché de página completa"
+
+#: single_pages/dashboard/security_guard/settings.php:18
+msgid "General"
+msgstr "General"
+
+#: single_pages/dashboard/security_guard/settings.php:112
+msgid "Generate and save"
+msgstr "Generar y guardar"
+
+#: single_pages/dashboard/security_guard/settings.php:28
+msgid "Geo"
+msgstr "Geo"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:155
+msgid "Geo block"
+msgstr "Bloqueo geográfico"
+
+#: src/Http/GuardMiddleware.php:272
+msgid "Gone"
+msgstr "Eliminada"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:347
+msgid "HTTP libraries (curl, wget, python-requests)"
+msgstr "Bibliotecas HTTP (curl, wget, python-requests)"
+
+#: src/Audit/Checklist.php:363
+msgid "HTTPS"
+msgstr "HTTPS"
+
+#: single_pages/dashboard/security_guard/blocks.php:92
+msgid "History"
+msgstr "Historial"
+
+#: single_pages/dashboard/security_guard/honeypot.php:45
+msgid "Hits"
+msgstr "Accesos"
+
+#: controller.php
+#: single_pages/dashboard/security_guard/settings.php:23
+#: elements/nav.php:18
+msgid "Honeypot"
+msgstr "Honeypot"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:352
+#: controllers/single_page/dashboard/security_guard/overview.php:293
+msgid "Honeypot traps"
+msgstr "Trampas (honeypot)"
+
+#: single_pages/dashboard/security_guard/honeypot.php:21
+msgid "Honeypot traps are disabled in the settings."
+msgstr "Las trampas están desactivadas en los ajustes."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:373
+msgid "Hosting account home directory"
+msgstr "Directorio personal de la cuenta de alojamiento"
+
+#: src/Logs/LogIngest.php:198
+msgid "Hosting log directory not found. Set the log file paths in the settings."
+msgstr "No se encontró el directorio de registros del alojamiento. Indique las rutas de los archivos de registro en los ajustes."
+
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:353
+msgid "Hosting log import"
+msgstr "Importación de registros del alojamiento"
+
+#: controllers/single_page/dashboard/security_guard/traffic.php:82
+msgid "Hosting log sources"
+msgstr "Fuentes de registros del alojamiento"
+
+#: controllers/single_page/dashboard/security_guard/overview.php:67
+#: controllers/single_page/dashboard/security_guard/traffic.php:30
+msgid "Hosting log statistics"
+msgstr "Estadísticas de registros del alojamiento"
+
+#: single_pages/dashboard/security_guard/settings.php:29
+#: single_pages/dashboard/security_guard/overview.php:219
+#: single_pages/dashboard/security_guard/overview.php:292
+msgid "Hosting logs"
+msgstr "Registros del alojamiento"
+
+#: single_pages/dashboard/security_guard/overview.php:90
+#: single_pages/dashboard/security_guard/traffic.php:81
+msgid "Hosting logs have not been read yet"
+msgstr "Los registros del alojamiento aún no se han leído"
+
+#: single_pages/dashboard/security_guard/overview.php:90
+#: single_pages/dashboard/security_guard/traffic.php:81
+#, php-format
+msgid "Hosting logs read: %s"
+msgstr "Registros del alojamiento leídos: %s"
+
+#: single_pages/dashboard/security_guard/overview.php:70
+msgid "I have reviewed the event log and found no false positives"
+msgstr "He revisado el registro de eventos y no he encontrado falsos positivos"
+
+#: src/Waf/Firewall.php:258
+#, php-format
+msgid "IP %s made %d failed sign-in attempts (monitor mode, not blocked)."
+msgstr "La IP %s hizo %d intentos de inicio de sesión fallidos (modo monitorización, no bloqueada)."
+
+#: src/Waf/Firewall.php:257
+#, php-format
+msgid "IP %s was blocked after %d failed sign-in attempts."
+msgstr "La IP %s se bloqueó tras %d intentos de inicio de sesión fallidos."
+
+#: single_pages/dashboard/security_guard/blocks.php:55
+#: single_pages/dashboard/security_guard/blocks.php:109
+#: single_pages/dashboard/security_guard/scores.php:36
+msgid "IP address"
+msgstr "Dirección IP"
+
+#: single_pages/dashboard/security_guard/whitelist.php:57
+msgid "IP address, prefix or CIDR"
+msgstr "Dirección IP, prefijo o CIDR"
+
+#: src/Notify/AlertService.php:127
+#, php-format
+msgid "IP address: %s"
+msgstr "Dirección IP: %s"
+
+#: single_pages/dashboard/security_guard/traffic.php:146
+msgid "IP addresses"
+msgstr "direcciones IP"
+
+#: single_pages/dashboard/security_guard/whitelist.php:94
+#, php-format
+msgid "IP addresses of administrators are trusted for %s days after a successful login."
+msgstr "Las direcciones IP de los administradores son de confianza durante %s días tras un inicio de sesión correcto."
+
+#: single_pages/dashboard/security_guard/blocks.php:97
+msgid "IP or reason"
+msgstr "IP o motivo"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:210
+msgid "Info"
+msgstr "Información"
+
+#: controllers/single_page/dashboard/security_guard/blocks.php:114
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:266
+msgid "Invalid block duration."
+msgstr "Duración de bloqueo no válida."
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:140
+msgid "Joomla exploits"
+msgstr "Exploits de Joomla"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:327
+msgid "Keep events, days"
+msgstr "Conservar eventos, días"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:345
+msgid "Known scanners (by user agent)"
+msgstr "Escáneres conocidos (por user agent)"
+
+#: single_pages/dashboard/security_guard/scores.php:39
+msgid "Last activity"
+msgstr "Última actividad"
+
+#: single_pages/dashboard/security_guard/blocks.php:113
+msgid "Last request"
+msgstr "Última petición"
+
+#: single_pages/dashboard/security_guard/checklist.php:32
+#, php-format
+msgid "Last run: %s (%s s)"
+msgstr "Última ejecución: %s (%s s)"
+
+#: single_pages/dashboard/security_guard/traffic.php:285
+msgid "Log sources"
+msgstr "Fuentes de registros"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:169
+msgid "Logged"
+msgstr "Registrado"
+
+#: single_pages/dashboard/security_guard/settings.php:26
+msgid "Login"
+msgstr "Inicio de sesión"
+
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:232
+msgid "Loopback and reserved addresses cannot be blocked."
+msgstr "Las direcciones de loopback y reservadas no se pueden bloquear."
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:158
+msgid "Manual block"
+msgstr "Bloqueo manual"
+
+#: single_pages/dashboard/security_guard/overview.php:375
+msgid "Mark all as read"
+msgstr "Marcar todo como leído"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:347
+msgid "May block uptime monitors and integrations."
+msgstr "Puede bloquear monitores de disponibilidad e integraciones."
+
+#: controllers/single_page/dashboard/security_guard/events.php:59
+msgid "Method"
+msgstr "Método"
+
+#: src/Audit/Checklist.php:356
+#, php-format
+msgid "Missing: %s"
+msgstr "Faltan: %s"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:323
+msgid "Mode"
+msgstr "Modo"
+
+#: elements/nav.php:26
+#: elements/dashboard_card.php:45
+msgid "Monitor mode"
+msgstr "Modo monitorización"
+
+#: controllers/single_page/dashboard/security_guard/overview.php:228
+msgid "Monitor mode is on: attacks are only logged."
+msgstr "El modo monitorización está activo: los ataques solo se registran."
+
+#: src/Audit/Checklist.php:159
+msgid "Monitor mode: attacks are logged but not blocked."
+msgstr "Modo monitorización: los ataques se registran, pero no se bloquean."
+
+#: single_pages/dashboard/security_guard/overview.php:62
+msgid "Monitor mode: attacks are logged, but nothing is blocked."
+msgstr "Modo monitorización: los ataques se registran, pero no se bloquea nada."
+
+#: single_pages/dashboard/security_guard/settings.php:95
+msgid "Monitor — only log"
+msgstr "Monitorización — solo registrar"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:323
+msgid "Monitor: only log attacks. Enforce: block them. Start with monitor and switch after reviewing the event log."
+msgstr "Monitorización: los ataques solo se registran. Bloqueo: se bloquean. Empiece con la monitorización y cambie tras revisar el registro de eventos."
+
+#: single_pages/dashboard/security_guard/whitelist.php:28
+msgid "Never"
+msgstr "Nunca"
+
+#: controllers/single_page/dashboard/security_guard/whitelist.php:118
+msgid "Never expires"
+msgstr "Sin caducidad"
+
+#: src/Audit/Checklist.php:231
+#, php-format
+msgid "No PHP files found among %s uploaded files."
+msgstr "No se encontraron archivos PHP entre %s archivos subidos."
+
+#: single_pages/dashboard/security_guard/traffic.php:289
+msgid "No access log files were found. Specify the paths in the settings (for example ~/access-logs/example.com-ssl_log)."
+msgstr "No se encontraron archivos de registro de acceso. Indique las rutas en los ajustes (por ejemplo ~/access-logs/example.com-ssl_log)."
+
+#: single_pages/dashboard/security_guard/blocks.php:104
+msgid "No active bans."
+msgstr "No hay bloqueos activos."
+
+#: single_pages/dashboard/security_guard/overview.php:380
+msgid "No alerts."
+msgstr "No hay alertas."
+
+#: single_pages/dashboard/security_guard/overview.php:263
+#: single_pages/dashboard/security_guard/overview.php:283
+#: single_pages/dashboard/security_guard/traffic.php:208
+msgid "No attacks in this period."
+msgstr "No hubo ataques en este periodo."
+
+#: single_pages/dashboard/security_guard/traffic.php:196
+msgid "No bot requests in this period."
+msgstr "No hubo peticiones de bots en este periodo."
+
+#: src/Audit/Checklist.php:314
+msgid "No content was leaked, but some URLs did not answer 403/404 (redirect or empty 200)."
+msgstr "No se filtró contenido, pero algunas URL no respondieron 403/404 (redirección o 200 vacío)."
+
+#: single_pages/dashboard/security_guard/overview.php:272
+#: single_pages/dashboard/security_guard/traffic.php:244
+msgid "No country data."
+msgstr "No hay datos de países."
+
+#: single_pages/dashboard/security_guard/traffic.php:47
+#: elements/chart_grouped.php:32
+#: elements/chart_hbars.php:23
+msgid "No data for this period."
+msgstr "No hay datos para este periodo."
+
+#: single_pages/dashboard/security_guard/whitelist.php:85
+#: single_pages/dashboard/security_guard/whitelist.php:97
+msgid "No entries yet."
+msgstr "Aún no hay entradas."
+
+#: single_pages/dashboard/security_guard/events.php:68
+msgid "No events match the filter."
+msgstr "Ningún evento coincide con el filtro."
+
+#: single_pages/dashboard/security_guard/overview.php:343
+msgid "No events yet."
+msgstr "Aún no hay eventos."
+
+#: src/Audit/Checklist.php:257
+msgid "No files or directories with write permission for everyone."
+msgstr "No hay archivos ni directorios con permiso de escritura para todos."
+
+#: single_pages/dashboard/security_guard/honeypot.php:47
+msgid "No hits yet."
+msgstr "Aún no hay accesos."
+
+#: single_pages/dashboard/security_guard/overview.php:237
+msgid "No hosting log data for this period."
+msgstr "No hay datos de los registros del alojamiento para este periodo."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:261
+#: controllers/single_page/dashboard/security_guard/settings.php:300
+#, php-format
+msgid "No more than %s lines are allowed."
+msgstr "Se permiten como máximo %s líneas."
+
+#: single_pages/dashboard/security_guard/overview.php:210
+#: single_pages/dashboard/security_guard/traffic.php:158
+msgid "No overloads in this period."
+msgstr "No hubo sobrecargas en este periodo."
+
+#: single_pages/dashboard/security_guard/blocks.php:104
+msgid "No past bans."
+msgstr "No hay bloqueos anteriores."
+
+#: src/Logs/LogIngest.php:204
+#, php-format
+msgid "No readable log files found: %s"
+msgstr "No se encontraron archivos de registro legibles: %s"
+
+#: single_pages/dashboard/security_guard/traffic.php:164
+msgid "No server errors in this period."
+msgstr "No hubo errores del servidor en este periodo."
+
+#: single_pages/dashboard/security_guard/honeypot.php:33
+msgid "No traps are active."
+msgstr "No hay trampas activas."
+
+#: single_pages/dashboard/security_guard/scores.php:31
+msgid "No visitors with a behaviour score."
+msgstr "No hay visitantes con puntuación de comportamiento."
+
+#: src/Http/GuardMiddleware.php:269
+msgid "Not Found"
+msgstr "No encontrado"
+
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:365
+msgid "Not all data was read within the time limit — press the button again to continue."
+msgstr "No se leyeron todos los datos en el tiempo disponible; pulse el botón de nuevo para continuar."
+
+#: single_pages/dashboard/security_guard/checklist.php:18
+msgid "Not checked"
+msgstr "No comprobado"
+
+#: single_pages/dashboard/security_guard/overview.php:162
+#, php-format
+msgid "Not checked: %s"
+msgstr "No comprobados: %s"
+
+#: single_pages/dashboard/security_guard/traffic.php:40
+msgid "Not found (404)"
+msgstr "No encontrado (404)"
+
+#: single_pages/dashboard/security_guard/traffic.php:151
+#: single_pages/dashboard/security_guard/traffic.php:152
+msgid "Not found (404) by day"
+msgstr "No encontrado (404) por día"
+
+#: single_pages/dashboard/security_guard/checklist.php:17
+msgid "OK"
+msgstr "Correcto"
+
+#: single_pages/dashboard/security_guard/overview.php:161
+#, php-format
+msgid "OK: %s"
+msgstr "Correctos: %s"
+
+#: single_pages/dashboard/security_guard/overview.php:142
+msgid "Off"
+msgstr "Desactivado"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:371
+msgid "Offline, without external services."
+msgstr "Sin conexión, sin servicios externos."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:341
+msgid "Old Joomla exploits"
+msgstr "Exploits antiguos de Joomla"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:327
+msgid "Older events are deleted automatically."
+msgstr "Los eventos más antiguos se eliminan automáticamente."
+
+#: single_pages/dashboard/security_guard/overview.php:142
+msgid "On"
+msgstr "Activado"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:377
+msgid "One path or pattern per line. Empty = detect automatically (~/access-logs, ~/logs)."
+msgstr "Una ruta o patrón por línea. Vacío = detectar automáticamente (~/access-logs, ~/logs)."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:353
+msgid "One path per line, for example /old-admin.php. Never link to them."
+msgstr "Una ruta por línea, por ejemplo /old-admin.php. No enlace nunca a ellas."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:331
+msgid "One per line: an IP, a prefix such as 203.0.113. or a CIDR range. These visitors skip all checks."
+msgstr "Una por línea: una IP, un prefijo como 203.0.113. o un rango CIDR. Estos visitantes evitan todas las comprobaciones."
+
+#: single_pages/dashboard/security_guard/blocks.php:83
+msgid "Only single addresses can be blocked. To block a whole network, use the geo block or the hosting firewall."
+msgstr "Solo se pueden bloquear direcciones individuales. Para bloquear una red entera, use el bloqueo geográfico o el cortafuegos del alojamiento."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:341
+msgid "Only specific known exploits; old Joomla article links keep working."
+msgstr "Solo exploits concretos y conocidos; los enlaces antiguos a artículos de Joomla siguen funcionando."
+
+#: elements/dashboard_card.php:65
+msgid "Open Security Guard"
+msgstr "Abrir Security Guard"
+
+#: single_pages/dashboard/security_guard/view.php:2
+msgid "Open the Security Guard overview"
+msgstr "Abrir el resumen de Security Guard"
+
+#: single_pages/dashboard/security_guard/overview.php:173
+msgid "Open the security check"
+msgstr "Abrir la comprobación de seguridad"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:325
+msgid "Opening any page with ?sg_pass=<token> unblocks the current IP. Empty = disabled. Keep the link in a safe place."
+msgstr "Abrir cualquier página con ?sg_pass=<token> desbloquea la IP actual. Vacío = desactivado. Guarde el enlace en un lugar seguro."
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:132
+#: controllers/single_page/dashboard/security_guard/support/format.php:160
+msgid "Other"
+msgstr "Otros"
+
+#: single_pages/dashboard/security_guard/overview.php:127
+#: single_pages/dashboard/security_guard/traffic.php:41
+msgid "Overload (508)"
+msgstr "Sobrecarga (508)"
+
+#: single_pages/dashboard/security_guard/overview.php:207
+#: single_pages/dashboard/security_guard/overview.php:210
+#: single_pages/dashboard/security_guard/traffic.php:157
+msgid "Overload (508) by day"
+msgstr "Sobrecarga (508) por día"
+
+#: controller.php
+#: elements/nav.php:14
+msgid "Overview"
+msgstr "Resumen"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:353
+msgid "Own trap URLs"
+msgstr "URL trampa propias"
+
+#: src/Audit/Checklist.php:396
+#, php-format
+msgid "PHP %s."
+msgstr "PHP %s."
+
+#: src/Audit/Checklist.php:214
+msgid "PHP files in application/files"
+msgstr "Archivos PHP en application/files"
+
+#: controllers/single_page/dashboard/security_guard/overview.php:295
+msgid "PHP probe burst detection"
+msgstr "Detección de ráfagas de sondeos PHP"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:152
+msgid "PHP probing"
+msgstr "Sondeo de PHP"
+
+#: src/Audit/Checklist.php:393
+msgid "PHP version"
+msgstr "Versión de PHP"
+
+#: elements/pagination.php:34
+msgid "Pages"
+msgstr "Páginas"
+
+#: src/Notify/AlertService.php:120
+msgid "Password brute-force attempt blocked"
+msgstr "Intento de fuerza bruta de contraseña bloqueado"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:150
+msgid "Password guessing"
+msgstr "Adivinación de contraseñas"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:363
+#: controllers/single_page/dashboard/security_guard/overview.php:292
+msgid "Password guessing protection"
+msgstr "Protección contra la adivinación de contraseñas"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:145
+msgid "Path traversal"
+msgstr "Recorrido de directorios"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:339
+msgid "Path traversal (../, /etc/passwd)"
+msgstr "Recorrido de directorios (../, /etc/passwd)"
+
+#: elements/period_filter.php:14
+msgid "Period"
+msgstr "Periodo"
+
+#: single_pages/dashboard/security_guard/overview.php:89
+#: single_pages/dashboard/security_guard/traffic.php:80
+#, php-format
+msgid "Period: %s – %s"
+msgstr "Periodo: %s – %s"
+
+#: single_pages/dashboard/security_guard/blocks.php:133
+#: single_pages/dashboard/security_guard/overview.php:47
+#: controllers/single_page/dashboard/security_guard/blocks.php:143
+msgid "Permanent"
+msgstr "Permanente"
+
+#: src/Audit/Checklist.php:168
+msgid "Permissions of application/config"
+msgstr "Permisos de application/config"
+
+#: src/Audit/Checklist.php:409
+msgid "Plan the switch to a newer PHP version (test the site on a copy first)."
+msgstr "Planifique el cambio a una versión más reciente de PHP (pruebe antes el sitio en una copia)."
+
+#: controllers/single_page/dashboard/security_guard/overview.php:212
+msgid "Please confirm that you have reviewed the event log before switching to enforce mode."
+msgstr "Confirme que ha revisado el registro de eventos antes de activar el modo de bloqueo."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:361
+msgid "Points before a ban"
+msgstr "Puntos antes del bloqueo"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:362
+msgid "Points expire after, seconds"
+msgstr "Los puntos caducan tras, segundos"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:332
+msgid "Prevents locking yourself out after a successful login."
+msgstr "Evita que se bloquee a sí mismo tras un inicio de sesión correcto."
+
+#: single_pages/dashboard/security_guard/overview.php:85
+#: single_pages/dashboard/security_guard/traffic.php:76
+#: single_pages/dashboard/security_guard/checklist.php:41
+msgid "Print"
+msgstr "Imprimir"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:346
+msgid "Probing of Concrete CMS internals"
+msgstr "Sondeo de archivos internos de Concrete CMS"
+
+#: single_pages/dashboard/security_guard/checklist.php:15
+msgid "Problem"
+msgstr "Problema"
+
+#: single_pages/dashboard/security_guard/overview.php:159
+#, php-format
+msgid "Problems: %s"
+msgstr "Problemas: %s"
+
+#: single_pages/dashboard/security_guard/overview.php:137
+msgid "Protection score"
+msgstr "Puntuación de protección"
+
+#: controller.php
+msgid "Protection status, attacks and traffic at a glance"
+msgstr "Estado de la protección, ataques y tráfico de un vistazo"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:349
+msgid "Public pages only; the dashboard is never checked."
+msgstr "Solo páginas públicas; el panel nunca se comprueba."
+
+#: single_pages/dashboard/security_guard/traffic.php:267
+msgid "Ranges"
+msgstr "Rangos"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:354
+#: controllers/single_page/dashboard/security_guard/support/format.php:151
+msgid "Rate limit"
+msgstr "Límite de frecuencia"
+
+#: single_pages/dashboard/security_guard/settings.php:24
+#: controllers/single_page/dashboard/security_guard/overview.php:294
+msgid "Rate limiting"
+msgstr "Límite de frecuencia"
+
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:359
+#, php-format
+msgid "Read %s lines from %s files; days recalculated: %s."
+msgstr "Leídas %s líneas de %s archivos; días recalculados: %s."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:334
+msgid "Read the visitor IP from Cloudflare headers, but only for requests coming from Cloudflare networks."
+msgstr "Leer la IP del visitante de las cabeceras de Cloudflare, pero solo para peticiones procedentes de redes de Cloudflare."
+
+#: single_pages/dashboard/security_guard/overview.php:80
+#: single_pages/dashboard/security_guard/traffic.php:71
+msgid "Reading logs…"
+msgstr "Leyendo registros…"
+
+#: single_pages/dashboard/security_guard/blocks.php:110
+msgid "Reason"
+msgstr "Motivo"
+
+#: single_pages/dashboard/security_guard/blocks.php:67
+msgid "Reason (optional, Latin letters)"
+msgstr "Motivo (opcional, letras latinas)"
+
+#: single_pages/dashboard/security_guard/overview.php:339
+msgid "Recent events"
+msgstr "Eventos recientes"
+
+#: controllers/single_page/dashboard/security_guard/events.php:59
+msgid "Referrer"
+msgstr "Referrer"
+
+#: single_pages/dashboard/security_guard/traffic.php:31
+msgid "Refused by the server (403)"
+msgstr "Rechazado por el servidor (403)"
+
+#: single_pages/dashboard/security_guard/whitelist.php:39
+msgid "Remove"
+msgstr "Quitar"
+
+#: single_pages/dashboard/security_guard/whitelist.php:36
+#, php-format
+msgid "Remove %s from the whitelist?"
+msgstr "¿Quitar %s de la lista blanca?"
+
+#: single_pages/dashboard/security_guard/events.php:78
+#: single_pages/dashboard/security_guard/honeypot.php:51
+msgid "Request"
+msgstr "Petición"
+
+#: single_pages/dashboard/security_guard/traffic.php:52
+msgid "Requests"
+msgstr "Peticiones"
+
+#: single_pages/dashboard/security_guard/overview.php:56
+msgid "Requests are not checked at all. Enable it in the settings."
+msgstr "Las peticiones no se comprueban en absoluto. Active el cortafuegos en los ajustes."
+
+#: single_pages/dashboard/security_guard/traffic.php:139
+#: single_pages/dashboard/security_guard/traffic.php:140
+msgid "Requests by hour of day"
+msgstr "Peticiones por hora del día"
+
+#: single_pages/dashboard/security_guard/whitelist.php:50
+msgid "Requests from these addresses skip all firewall checks. Add only addresses you control: your office, your home connection, monitoring services."
+msgstr "Las peticiones desde estas direcciones evitan todas las comprobaciones del cortafuegos. Añada solo direcciones que controle: oficina, conexión de casa, servicios de monitorización."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:355
+msgid "Requests per window"
+msgstr "Peticiones por ventana"
+
+#: single_pages/dashboard/security_guard/scores.php:73
+#: single_pages/dashboard/security_guard/events.php:61
+msgid "Reset"
+msgstr "Restablecer"
+
+#: single_pages/dashboard/security_guard/traffic.php:178
+msgid "Response statuses"
+msgstr "Códigos de respuesta"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:324
+msgid "Response to blocked requests"
+msgstr "Respuesta a las peticiones bloqueadas"
+
+#: src/Audit/Checklist.php:160
+msgid "Review the event log for false positives for a few days, then switch to enforce mode."
+msgstr "Revise el registro de eventos unos días en busca de falsos positivos y después active el modo de bloqueo."
+
+#: single_pages/dashboard/security_guard/events.php:76
+#: single_pages/dashboard/security_guard/traffic.php:126
+#: controllers/single_page/dashboard/security_guard/events.php:59
+msgid "Rule"
+msgstr "Regla"
+
+#: single_pages/dashboard/security_guard/checklist.php:40
+msgid "Run the check"
+msgstr "Ejecutar la comprobación"
+
+#: single_pages/dashboard/security_guard/checklist.php:40
+msgid "Run the check again"
+msgstr "Ejecutar la comprobación de nuevo"
+
+#: single_pages/dashboard/security_guard/overview.php:173
+msgid "Run the security check"
+msgstr "Ejecutar la comprobación de seguridad"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:143
+msgid "SQL / code injection"
+msgstr "Inyección SQL / de código"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:337
+msgid "SQL injection"
+msgstr "Inyección SQL"
+
+#: single_pages/dashboard/security_guard/settings.php:68
+#: single_pages/dashboard/security_guard/settings.php:142
+msgid "Save"
+msgstr "Guardar"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:146
+msgid "Scanners"
+msgstr "Escáneres"
+
+#: single_pages/dashboard/security_guard/scores.php:37
+#: single_pages/dashboard/security_guard/scores.php:61
+msgid "Score"
+msgstr "Puntuación"
+
+#: single_pages/dashboard/security_guard/blocks.php:96
+#: single_pages/dashboard/security_guard/blocks.php:98
+msgid "Search"
+msgstr "Buscar"
+
+#: single_pages/dashboard/security_guard/traffic.php:42
+msgid "Search and other bots"
+msgstr "Buscadores y otros bots"
+
+#: single_pages/dashboard/security_guard/traffic.php:253
+msgid "Search bot IP ranges"
+msgstr "Rangos IP de bots de buscadores"
+
+#: controllers/single_page/dashboard/security_guard/overview.php:297
+msgid "Search bot verification"
+msgstr "Verificación de bots de buscadores"
+
+#: single_pages/dashboard/security_guard/overview.php:311
+msgid "Search engine crawler: one-click ban is disabled"
+msgstr "Rastreador de buscador: el bloqueo con un clic está desactivado"
+
+#: single_pages/dashboard/security_guard/settings.php:58
+msgid "Sections"
+msgstr "Secciones"
+
+#: controller.php
+#: elements/nav.php:21
+msgid "Security Check"
+msgstr "Comprobación de seguridad"
+
+#: controller.php:42
+#: controller.php
+#: single_pages/dashboard/security_guard/overview.php:184
+msgid "Security Guard"
+msgstr "Security Guard"
+
+#: single_pages/dashboard/security_guard/overview.php:181
+msgid "Security Guard on this site and requests the server rejected before PHP"
+msgstr "Security Guard en este sitio y peticiones rechazadas por el servidor antes de PHP"
+
+#: src/Notify/AlertService.php:124
+msgid "Security alert"
+msgstr "Alerta de seguridad"
+
+#: single_pages/dashboard/security_guard/overview.php:151
+#: controllers/single_page/dashboard/security_guard/checklist.php:38
+msgid "Security check"
+msgstr "Comprobación de seguridad"
+
+#: src/Audit/Checklist.php:323
+msgid "Security headers on the home page"
+msgstr "Cabeceras de seguridad de la página de inicio"
+
+#: src/Audit/Checklist.php:403
+#, php-format
+msgid "Security support for PHP %s ended on %s."
+msgstr "El soporte de seguridad de PHP %s terminó el %s."
+
+#: src/Audit/Checklist.php:408
+#, php-format
+msgid "Security support for PHP %s ends on %s."
+msgstr "El soporte de seguridad de PHP %s termina el %s."
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:141
+msgid "Sensitive files"
+msgstr "Archivos sensibles"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:344
+msgid "Sensitive files (.env, .git, backups)"
+msgstr "Archivos sensibles (.env, .git, copias de seguridad)"
+
+#: src/Audit/Checklist.php:268
+msgid "Sensitive files reachable from the internet"
+msgstr "Archivos sensibles accesibles desde Internet"
+
+#: single_pages/dashboard/security_guard/overview.php:184
+#: single_pages/dashboard/security_guard/overview.php:219
+#: single_pages/dashboard/security_guard/overview.php:291
+msgid "Server (before PHP)"
+msgstr "Servidor (antes de PHP)"
+
+#: single_pages/dashboard/security_guard/traffic.php:163
+#: single_pages/dashboard/security_guard/traffic.php:164
+msgid "Server errors (5xx) by day"
+msgstr "Errores del servidor (5xx) por día"
+
+#: src/Audit/Checklist.php:421
+#: src/Audit/Checklist.php:425
+msgid "Set \"Show generic message\" for guests in Dashboard → System & Settings → Error Handling."
+msgstr "Para los invitados, elija «Mostrar mensaje genérico» en Panel → Sistema y ajustes → Gestión de errores."
+
+#: src/Audit/Checklist.php:208
+msgid "Set 0750 on the directory and 0640 on the files (cPanel → File Manager → Permissions)."
+msgstr "Aplique 0750 al directorio y 0640 a los archivos (cPanel → File Manager → Permissions)."
+
+#: controller.php
+#: single_pages/dashboard/security_guard/overview.php:57
+#: elements/nav.php:22
+msgid "Settings"
+msgstr "Ajustes"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:151
+msgid "Settings saved."
+msgstr "Ajustes guardados."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:150
+msgid "Settings saved. A new emergency bypass token was generated — save the bypass link in a safe place."
+msgstr "Ajustes guardados. Se ha generado un nuevo token de acceso de emergencia: guarde el enlace en un lugar seguro."
+
+#: src/Notify/AlertService.php:132
+#, php-format
+msgid "Severity: %s"
+msgstr "Gravedad: %s"
+
+#: elements/period_filter.php:29
+msgid "Show"
+msgstr "Mostrar"
+
+#: single_pages/dashboard/security_guard/settings.php:21
+msgid "Signatures"
+msgstr "Firmas"
+
+#: single_pages/dashboard/security_guard/scores.php:38
+msgid "Signs"
+msgstr "Señales"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:375
+msgid "Size of the server 403 page, bytes"
+msgstr "Tamaño de la página 403 del servidor, bytes"
+
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:369
+msgid "Some log files could not be read:"
+msgstr "No se pudieron leer algunos archivos de registro:"
+
+#: controllers/single_page/dashboard/security_guard/traffic.php:193
+msgid "Some sources could not be downloaded:"
+msgstr "No se pudieron descargar algunas fuentes:"
+
+#: single_pages/dashboard/security_guard/traffic.php:267
+msgid "Source"
+msgstr "Fuente"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:369
+msgid "Spike: at least requests per minute"
+msgstr "Pico: al menos peticiones por minuto"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:368
+msgid "Spike: times above normal"
+msgstr "Pico: veces por encima de lo normal"
+
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:118
+msgid "State cache"
+msgstr "Caché de estado"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:355
+msgid "Static files are not counted."
+msgstr "Los archivos estáticos no se cuentan."
+
+#: src/Audit/Checklist.php:412
+#, php-format
+msgid "Supported until %s."
+msgstr "Con soporte hasta el %s."
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:153
+msgid "Suspicious behaviour"
+msgstr "Comportamiento sospechoso"
+
+#: src/Audit/Checklist.php:404
+msgid "Switch to a supported PHP version in cPanel → Select PHP Version (test the site on a copy first)."
+msgstr "Cambie a una versión de PHP con soporte en cPanel → Select PHP Version (pruebe antes el sitio en una copia)."
+
+#: single_pages/dashboard/security_guard/overview.php:72
+msgid "Switch to enforce mode"
+msgstr "Activar el modo de bloqueo"
+
+#: single_pages/dashboard/security_guard/blocks.php:36
+#, php-format
+msgid "The address seen through the proxy (%s) differs from the direct connection address (%s). Both are shown and both will be unblocked."
+msgstr "La dirección vista a través del proxy (%s) difiere de la dirección de la conexión directa (%s). Se muestran ambas y se desbloquearán ambas."
+
+#: controllers/single_page/dashboard/security_guard/traffic.php:98
+msgid "The bot range update service is not available in this version."
+msgstr "El servicio de actualización de rangos de bots no está disponible en esta versión."
+
+#: src/Audit/Checklist.php:437
+msgid "The built-in ban after failed logins is disabled."
+msgstr "El bloqueo integrado tras inicios de sesión fallidos está desactivado."
+
+#: src/Audit/Checklist.php:94
+#, php-format
+msgid "The check failed: %s"
+msgstr "La comprobación falló: %s"
+
+#: single_pages/dashboard/security_guard/checklist.php:36
+msgid "The check requests /.env and similar URLs from the server itself. In enforce mode the firewall may log these requests from the server IP."
+msgstr "La comprobación solicita /.env y URL similares desde el propio servidor. En modo de bloqueo, el cortafuegos puede registrar estas peticiones desde la IP del servidor."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:379
+msgid "The cron command has no limit."
+msgstr "El comando de cron no tiene límite."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:376
+msgid "The cron command security-guard:update-ranges downloads the official ranges published by Google, Bing and others. Without it the built-in ranges are used."
+msgstr "El comando de cron security-guard:update-ranges descarga los rangos oficiales que publican Google, Bing y otros. Sin él se usan los rangos integrados."
+
+#: src/Audit/Checklist.php:383
+#, php-format
+msgid "The database is still at %s: the upgrade was not finished."
+msgstr "La base de datos sigue en la versión %s: la actualización no ha terminado."
+
+#: src/Audit/Checklist.php:171
+#: src/Audit/Checklist.php:217
+#, php-format
+msgid "The directory %s was not found."
+msgstr "No se encontró el directorio %s."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:373
+msgid "The directory that contains access-logs/ and logs/, for example /home/account. Empty = detect automatically."
+msgstr "El directorio que contiene access-logs/ y logs/, por ejemplo /home/account. Vacío = detectar automáticamente."
+
+#: controllers/single_page/dashboard/security_guard/whitelist.php:108
+msgid "The entry is removed from the whitelist."
+msgstr "La entrada se ha quitado de la lista blanca."
+
+#: single_pages/dashboard/security_guard/overview.php:155
+msgid "The environment check has not been run yet. It inspects file permissions, publicly reachable files, security headers and versions."
+msgstr "La comprobación del entorno aún no se ha ejecutado. Revisa los permisos de archivos, los archivos accesibles públicamente, las cabeceras de seguridad y las versiones."
+
+#: controllers/single_page/dashboard/security_guard/events.php:55
+msgid "The event log is unavailable."
+msgstr "El registro de eventos no está disponible."
+
+#: single_pages/dashboard/security_guard/overview.php:55
+#: src/Audit/Checklist.php:156
+msgid "The firewall is disabled."
+msgstr "El cortafuegos está desactivado."
+
+#: single_pages/dashboard/security_guard/overview.php:237
+msgid "The firewall log has no events for this period yet."
+msgstr "El registro del cortafuegos aún no tiene eventos para este periodo."
+
+#: single_pages/dashboard/security_guard/traffic.php:110
+msgid "The hosting firewall (ModSecurity/Imunify) or .htaccess rules rejected these requests with 403 before PHP; Security Guard never saw them"
+msgstr "El cortafuegos del alojamiento (ModSecurity/Imunify) o reglas de .htaccess rechazaron estas peticiones con 403 antes de PHP; Security Guard nunca las vio"
+
+#: src/Http/GuardMiddleware.php:270
+#: src/Http/GuardMiddleware.php:273
+msgid "The page you are looking for cannot be found."
+msgstr "No se encuentra la página que busca."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:328
+msgid "The same IP and rule are logged no more often than this."
+msgstr "La misma IP y regla no se registran más a menudo que esto."
+
+#: controllers/single_page/dashboard/security_guard/scores.php:64
+#, php-format
+msgid "The score of %s is reset."
+msgstr "Se ha restablecido la puntuación de %s."
+
+#: controllers/single_page/dashboard/security_guard/checklist.php:42
+msgid "The security check could not run."
+msgstr "No se pudo ejecutar la comprobación de seguridad."
+
+#: controllers/single_page/dashboard/security_guard/checklist.php:40
+#, php-format
+msgid "The security check is finished in %s s."
+msgstr "Comprobación de seguridad terminada en %s s."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:374
+msgid "The server can reject requests with its own 403 page before PHP runs: the hosting firewall (ModSecurity/Imunify) and .htaccess rules look the same in the logs. Security Guard never sees these requests; they are counted from the access logs as a separate source."
+msgstr "El servidor puede rechazar peticiones con su propia página 403 antes de que se ejecute PHP: el cortafuegos del alojamiento (ModSecurity/Imunify) y las reglas de .htaccess se ven igual en los registros. Security Guard nunca ve esas peticiones; se cuentan a partir de los registros de acceso como una fuente aparte."
+
+#: src/Audit/Checklist.php:329
+#, php-format
+msgid "The server could not reach its own address (%s)."
+msgstr "El servidor no pudo acceder a su propia dirección (%s)."
+
+#: src/Audit/Checklist.php:305
+#, php-format
+msgid "The server could not reach its own address (%s). Check these URLs from a browser."
+msgstr "El servidor no pudo acceder a su propia dirección (%s). Compruebe estas URL desde un navegador."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:142
+msgid "The settings could not be saved."
+msgstr "No se pudieron guardar los ajustes."
+
+#: src/Audit/Checklist.php:270
+#: src/Audit/Checklist.php:325
+msgid "The site URL is unknown."
+msgstr "Se desconoce la URL del sitio."
+
+#: src/Audit/Checklist.php:368
+msgid "The site address uses HTTPS."
+msgstr "La dirección del sitio usa HTTPS."
+
+#: src/Audit/Checklist.php:371
+msgid "The site address uses plain HTTP: passwords are sent unencrypted."
+msgstr "La dirección del sitio usa HTTP sin cifrar: las contraseñas se envían sin cifrado."
+
+#: src/Logs/LogIngest.php:201
+msgid "The site domain is unknown (no canonical URL). Set the log file paths in the settings."
+msgstr "Se desconoce el dominio del sitio (no hay URL canónica). Indique las rutas de los archivos de registro en los ajustes."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:334
+msgid "The site is behind Cloudflare"
+msgstr "El sitio está detrás de Cloudflare"
+
+#: src/Audit/Checklist.php:244
+msgid "The web root was not found."
+msgstr "No se encontró la raíz web."
+
+#: single_pages/dashboard/security_guard/overview.php:213
+#: single_pages/dashboard/security_guard/traffic.php:86
+msgid "There is no data from the hosting access logs for this period yet. Press \"Update from hosting logs\" or set up the cron command security-guard:ingest."
+msgstr "Aún no hay datos de los registros de acceso del alojamiento para este periodo. Pulse «Actualizar desde los registros del alojamiento» o configure el comando de cron security-guard:ingest."
+
+#: src/Audit/Checklist.php:309
+#, php-format
+msgid "These files are publicly downloadable: %s"
+msgstr "Estos archivos se pueden descargar públicamente: %s"
+
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:127
+msgid "This action requires a form submission."
+msgstr "Esta acción requiere enviar un formulario."
+
+#: single_pages/dashboard/security_guard/blocks.php:78
+#, php-format
+msgid "This is a verified search engine crawler (%s) — banning it removes the site from search results"
+msgstr "Es un rastreador de buscador verificado (%s): bloquearlo retira el sitio de los resultados de búsqueda"
+
+#: single_pages/dashboard/security_guard/overview.php:63
+msgid "This is the safe start after installation. Check the event log for a few days: if legitimate visitors or editors do not appear there, switch to enforce mode."
+msgstr "Es el inicio seguro tras la instalación. Revise el registro de eventos durante unos días: si no aparecen visitantes legítimos ni editores, active el modo de bloqueo."
+
+#: src/Notify/AlertService.php:135
+msgid "This message was sent by the Security Guard package. Similar alerts are not repeated more often than the throttle set in its settings."
+msgstr "Este mensaje lo ha enviado el paquete Security Guard. Las alertas similares no se repiten más a menudo que el límite definido en sus ajustes."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:328
+msgid "Throttle identical events, seconds"
+msgstr "Limitar eventos idénticos, segundos"
+
+#: single_pages/dashboard/security_guard/overview.php:348
+#: single_pages/dashboard/security_guard/events.php:73
+#: single_pages/dashboard/security_guard/honeypot.php:51
+msgid "Time"
+msgstr "Hora"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:379
+msgid "Time limit for \"Update from hosting logs\", seconds"
+msgstr "Límite de tiempo para «Actualizar desde los registros del alojamiento», segundos"
+
+#: src/Notify/AlertService.php:133
+#, php-format
+msgid "Time: %s"
+msgstr "Hora: %s"
+
+#: single_pages/dashboard/security_guard/events.php:51
+#: elements/period_filter.php:26
+msgid "To"
+msgstr "Hasta"
+
+#: src/Http/GuardMiddleware.php:266
+msgid "Too Many Requests"
+msgstr "Demasiadas peticiones"
+
+#: src/Http/GuardMiddleware.php:267
+msgid "Too many failed sign-in attempts from your IP address. Please try again later."
+msgstr "Demasiados intentos de inicio de sesión fallidos desde su dirección IP. Vuelva a intentarlo más tarde."
+
+#: single_pages/dashboard/security_guard/traffic.php:129
+#: single_pages/dashboard/security_guard/traffic.php:229
+msgid "Top IP addresses"
+msgstr "Principales direcciones IP"
+
+#: single_pages/dashboard/security_guard/traffic.php:217
+msgid "Top URLs"
+msgstr "Principales URL"
+
+#: single_pages/dashboard/security_guard/overview.php:279
+msgid "Top attacking IP addresses"
+msgstr "Principales direcciones IP atacantes"
+
+#: single_pages/dashboard/security_guard/overview.php:269
+#: single_pages/dashboard/security_guard/traffic.php:236
+msgid "Top countries"
+msgstr "Principales países"
+
+#: single_pages/dashboard/security_guard/traffic.php:223
+msgid "Top not found (404)"
+msgstr "Principales no encontrados (404)"
+
+#: single_pages/dashboard/security_guard/traffic.php:125
+msgid "Top rules"
+msgstr "Principales reglas"
+
+#: controller.php
+#: single_pages/dashboard/security_guard/traffic.php:43
+#: elements/nav.php:20
+msgid "Traffic"
+msgstr "Tráfico"
+
+#: controller.php
+msgid "Traffic analytics from the hosting access logs"
+msgstr "Análisis de tráfico a partir de los registros de acceso del alojamiento"
+
+#: single_pages/dashboard/security_guard/traffic.php:169
+#: single_pages/dashboard/security_guard/traffic.php:170
+msgid "Traffic by day"
+msgstr "Tráfico por día"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:154
+msgid "Traffic spike"
+msgstr "Pico de tráfico"
+
+#: src/Notify/AlertService.php:121
+msgid "Traffic spike detected"
+msgstr "Pico de tráfico detectado"
+
+#: controllers/single_page/dashboard/security_guard/overview.php:298
+msgid "Traffic spike detection"
+msgstr "Detección de picos de tráfico"
+
+#: src/Waf/Firewall.php:492
+#, php-format
+msgid "Traffic spike: %d requests in the last minute against a baseline of %d per minute."
+msgstr "Pico de tráfico: %d peticiones en el último minuto frente a una media de %d por minuto."
+
+#: src/Waf/Firewall.php:493
+#, php-format
+msgid "Traffic spike: %d requests in the last minute."
+msgstr "Pico de tráfico: %d peticiones en el último minuto."
+
+#: single_pages/dashboard/security_guard/honeypot.php:29
+msgid "Trap URLs"
+msgstr "URL trampa"
+
+#: controller.php
+msgid "Trap URLs and hits"
+msgstr "URL trampa y accesos"
+
+#: single_pages/dashboard/security_guard/honeypot.php:23
+msgid "Trap URLs do not exist on the site and are never linked. Only scanners request them, so the IP is blocked immediately."
+msgstr "Las URL trampa no existen en el sitio y nunca se enlazan. Solo los escáneres las solicitan, así que la IP se bloquea de inmediato."
+
+#: single_pages/dashboard/security_guard/settings.php:19
+msgid "Trust"
+msgstr "Confianza"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:332
+msgid "Trust the IP of an administrator after login"
+msgstr "Confiar en la IP de un administrador tras iniciar sesión"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:333
+msgid "Trust the administrator IP for, days"
+msgstr "Confiar en la IP del administrador durante, días"
+
+#: controller.php
+msgid "Trusted IP addresses and ranges"
+msgstr "Direcciones IP y rangos de confianza"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:331
+msgid "Trusted addresses"
+msgstr "Direcciones de confianza"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:372
+msgid "Two-letter codes, comma-separated, for example RU, BY. Empty = no geo block."
+msgstr "Códigos de dos letras separados por comas, por ejemplo RU, BY. Vacío = sin bloqueo geográfico."
+
+#: single_pages/dashboard/security_guard/overview.php:351
+#: single_pages/dashboard/security_guard/traffic.php:218
+#: single_pages/dashboard/security_guard/traffic.php:224
+msgid "URL"
+msgstr "URL"
+
+#: single_pages/dashboard/security_guard/events.php:55
+msgid "URL or user agent"
+msgstr "URL o user agent"
+
+#: src/Notify/AlertService.php:130
+#, php-format
+msgid "URL: %s"
+msgstr "URL: %s"
+
+#: single_pages/dashboard/security_guard/blocks.php:150
+msgid "Unblock"
+msgstr "Desbloquear"
+
+#: single_pages/dashboard/security_guard/blocks.php:45
+msgid "Unblock my IP"
+msgstr "Desbloquear mi IP"
+
+#: controllers/single_page/dashboard/security_guard/blocks.php:101
+#, php-format
+msgid "Unblocked: %s. The behaviour score was reset as well."
+msgstr "Desbloqueadas: %s. También se ha restablecido la puntuación de comportamiento."
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:161
+msgid "Unclassified"
+msgstr "Sin clasificar"
+
+#: single_pages/dashboard/security_guard/traffic.php:145
+#: single_pages/dashboard/security_guard/traffic.php:146
+msgid "Unique IP addresses by day"
+msgstr "Direcciones IP únicas por día"
+
+#: single_pages/dashboard/security_guard/blocks.php:111
+msgid "Until"
+msgstr "Hasta"
+
+#: single_pages/dashboard/security_guard/traffic.php:258
+msgid "Update bot ranges now"
+msgstr "Actualizar ahora los rangos de bots"
+
+#: single_pages/dashboard/security_guard/overview.php:83
+#: single_pages/dashboard/security_guard/traffic.php:74
+msgid "Update from hosting logs"
+msgstr "Actualizar desde los registros del alojamiento"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:376
+msgid "Update search bot IP ranges automatically"
+msgstr "Actualizar automáticamente los rangos IP de bots de buscadores"
+
+#: single_pages/dashboard/security_guard/traffic.php:267
+msgid "Updated"
+msgstr "Actualizado"
+
+#: single_pages/dashboard/security_guard/settings.php:30
+msgid "Updates"
+msgstr "Actualizaciones"
+
+#: single_pages/dashboard/security_guard/traffic.php:255
+msgid "Updating…"
+msgstr "Actualizando…"
+
+#: src/Audit/Checklist.php:262
+msgid "Use 0644 for files and 0755 for directories (0777 is never needed with PHP running as your account)."
+msgstr "Use 0644 para archivos y 0755 para directorios (0777 nunca es necesario cuando PHP se ejecuta con su cuenta)."
+
+#: controllers/single_page/dashboard/security_guard/events.php:59
+msgid "User agent"
+msgstr "User agent"
+
+#: single_pages/dashboard/security_guard/traffic.php:263
+msgid "Using the built-in ranges. They are updated with the package; automatic updates run through the cron command security-guard:update-ranges."
+msgstr "Se usan los rangos integrados. Se actualizan con el paquete; la actualización automática se hace con el comando de cron security-guard:update-ranges."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:350
+msgid "Verify search bots"
+msgstr "Verificar bots de buscadores"
+
+#: src/Audit/Checklist.php:420
+msgid "Visitors see full debug output (paths, code, configuration)."
+msgstr "Los visitantes ven la salida de depuración completa (rutas, código, configuración)."
+
+#: src/Audit/Checklist.php:428
+msgid "Visitors see only a generic error message."
+msgstr "Los visitantes solo ven un mensaje de error genérico."
+
+#: src/Audit/Checklist.php:424
+msgid "Visitors see the text of error messages, which may reveal internal details."
+msgstr "Los visitantes ven el texto de los mensajes de error, que puede revelar detalles internos."
+
+#: controller.php
+msgid "Visitors with suspicious behaviour"
+msgstr "Visitantes con comportamiento sospechoso"
+
+#: single_pages/dashboard/security_guard/checklist.php:16
+#: controllers/single_page/dashboard/security_guard/support/format.php:210
+msgid "Warning"
+msgstr "Advertencia"
+
+#: single_pages/dashboard/security_guard/overview.php:160
+#, php-format
+msgid "Warnings: %s"
+msgstr "Advertencias: %s"
+
+#: controller.php
+msgid "Web application firewall and security dashboard"
+msgstr "Cortafuegos de aplicaciones web y panel de seguridad"
+
+#: controller.php:47
+msgid "Web application firewall, login protection and security dashboard."
+msgstr "Cortafuegos de aplicaciones web, protección del inicio de sesión y panel de seguridad."
+
+#: controllers/single_page/dashboard/security_guard/settings.php:343
+#: controllers/single_page/dashboard/security_guard/support/format.php:142
+msgid "Web shells"
+msgstr "Web shells"
+
+#: single_pages/dashboard/security_guard/overview.php:262
+msgid "What attackers were looking for"
+msgstr "Qué buscaban los atacantes"
+
+#: single_pages/dashboard/security_guard/checklist.php:55
+msgid "What to do:"
+msgstr "Qué hacer:"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:322
+msgid "When off, requests are not checked at all."
+msgstr "Si se desactiva, las peticiones no se comprueban en absoluto."
+
+#: controller.php
+#: single_pages/dashboard/security_guard/whitelist.php:83
+#: elements/nav.php:17
+msgid "Whitelist"
+msgstr "Lista blanca"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:356
+msgid "Window, seconds"
+msgstr "Ventana, segundos"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:359
+#: controllers/single_page/dashboard/security_guard/settings.php:365
+msgid "Within, seconds"
+msgstr "En, segundos"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:139
+msgid "WordPress probing"
+msgstr "Sondeo de WordPress"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:342
+msgid "WordPress probing (wp-login, xmlrpc)"
+msgstr "Sondeo de WordPress (wp-login, xmlrpc)"
+
+#: controllers/single_page/dashboard/security_guard/settings.php:326
+msgid "Write events to the log"
+msgstr "Guardar eventos en el registro"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:144
+msgid "XSS"
+msgstr "XSS"
+
+#: controllers/single_page/dashboard/security_guard/support/base_controller.php:227
+#, php-format
+msgid "You cannot block your own IP address (%s)."
+msgstr "No puede bloquear su propia dirección IP (%s)."
+
+#: single_pages/dashboard/security_guard/overview.php:309
+msgid "Your IP"
+msgstr "Su IP"
+
+#: single_pages/dashboard/security_guard/blocks.php:30
+msgid "Your IP address"
+msgstr "Su dirección IP"
+
+#: single_pages/dashboard/security_guard/blocks.php:39
+msgid "Your IP address is blocked!"
+msgstr "¡Su dirección IP está bloqueada!"
+
+#: single_pages/dashboard/security_guard/settings.php:129
+#: single_pages/dashboard/security_guard/whitelist.php:74
+msgid "Your IP address:"
+msgstr "Su dirección IP:"
+
+#: single_pages/dashboard/security_guard/blocks.php:41
+msgid "Your address is not blocked. Logged-in administrators are never blocked by the firewall heuristics."
+msgstr "Su dirección no está bloqueada. Las heurísticas del cortafuegos nunca bloquean a los administradores que han iniciado sesión."
+
+#: elements/dashboard_card.php:60
+msgid "active bans"
+msgstr "bloqueos activos"
+
+#: single_pages/dashboard/security_guard/overview.php:186
+#: single_pages/dashboard/security_guard/overview.php:196
+#: single_pages/dashboard/security_guard/traffic.php:104
+msgid "attacks"
+msgstr "ataques"
+
+#: elements/dashboard_card.php:59
+msgid "attacks today"
+msgstr "ataques hoy"
+
+#: single_pages/dashboard/security_guard/traffic.php:31
+msgid "by .htaccess or the firewall"
+msgstr "por .htaccess o el cortafuegos"
+
+#: single_pages/dashboard/security_guard/honeypot.php:37
+msgid "custom"
+msgstr "propia"
+
+#: single_pages/dashboard/security_guard/whitelist.php:62
+msgid "e.g. office"
+msgstr "p. ej., oficina"
+
+#: single_pages/dashboard/security_guard/traffic.php:237
+msgid "estimated from the top IP addresses"
+msgstr "estimado a partir de las principales direcciones IP"
+
+#: single_pages/dashboard/security_guard/whitelist.php:31
+msgid "expired"
+msgstr "caducada"
+
+#: single_pages/dashboard/security_guard/overview.php:97
+#: single_pages/dashboard/security_guard/overview.php:102
+msgid "firewall log"
+msgstr "registro del cortafuegos"
+
+#: single_pages/dashboard/security_guard/overview.php:270
+msgid "for hosting logs: estimated from the top attacking IPs"
+msgstr "para los registros del alojamiento: estimado a partir de las principales IP atacantes"
+
+#: single_pages/dashboard/security_guard/overview.php:107
+#: single_pages/dashboard/security_guard/traffic.php:29
+#, php-format
+msgid "from %s IP addresses"
+msgstr "desde %s direcciones IP"
+
+#: single_pages/dashboard/security_guard/traffic.php:30
+#, php-format
+msgid "from %s IP addresses; counted by URL pattern, as in the monthly report"
+msgstr "desde %s direcciones IP; según el patrón de URL, como en el informe mensual"
+
+#: single_pages/dashboard/security_guard/overview.php:123
+#: single_pages/dashboard/security_guard/traffic.php:36
+#, php-format
+msgid "from %s IP addresses; hosting firewall (ModSecurity/Imunify) and .htaccess rules"
+msgstr "desde %s direcciones IP; cortafuegos del alojamiento (ModSecurity/Imunify) y reglas de .htaccess"
+
+#: single_pages/dashboard/security_guard/overview.php:117
+#, php-format
+msgid "hosting logs; password guessing events: %s"
+msgstr "registros del alojamiento; eventos de adivinación de contraseñas: %s"
+
+#: controllers/single_page/dashboard/security_guard/support/format.php:83
+#, php-format
+msgid "in %s"
+msgstr "dentro de %s"
+
+#: single_pages/dashboard/security_guard/overview.php:194
+msgid "including requests that never reached PHP"
+msgstr "incluidas las peticiones que nunca llegaron a PHP"
+
+#: single_pages/dashboard/security_guard/blocks.php:129
+#, php-format
+msgid "level %s"
+msgstr "nivel %s"
+
+#: single_pages/dashboard/security_guard/blocks.php:129
+msgid "manual"
+msgstr "manual"
+
+#: src/Audit/Checklist.php:348
+msgid "missing"
+msgstr "ausente"
+
+#: src/Audit/Checklist.php:286
+msgid "no response"
+msgstr "sin respuesta"
+
+#: src/Audit/Checklist.php:348
+msgid "present"
+msgstr "presente"
+
+#: single_pages/dashboard/security_guard/overview.php:210
+#: single_pages/dashboard/security_guard/traffic.php:158
+msgid "refusals (508)"
+msgstr "rechazos (508)"
+
+#: single_pages/dashboard/security_guard/traffic.php:41
+msgid "refused by the hosting"
+msgstr "rechazadas por el alojamiento"
+
+#: single_pages/dashboard/security_guard/overview.php:129
+msgid "refused by the hosting for the period"
+msgstr "rechazos del alojamiento en el periodo"
+
+#: single_pages/dashboard/security_guard/overview.php:203
+#: single_pages/dashboard/security_guard/traffic.php:42
+#: single_pages/dashboard/security_guard/traffic.php:100
+msgid "requests"
+msgstr "peticiones"
+
+#: single_pages/dashboard/security_guard/overview.php:181
+msgid "requests detected by the firewall on this site"
+msgstr "peticiones detectadas por el cortafuegos de este sitio"
+
+#: single_pages/dashboard/security_guard/traffic.php:152
+#: single_pages/dashboard/security_guard/traffic.php:164
+msgid "responses"
+msgstr "respuestas"
+
+#: single_pages/dashboard/security_guard/overview.php:112
+msgid "right now"
+msgstr "ahora mismo"
+
+#: single_pages/dashboard/security_guard/traffic.php:43
+msgid "sent to visitors"
+msgstr "enviados a los visitantes"
+
+#: single_pages/dashboard/security_guard/traffic.php:40
+#, php-format
+msgid "server errors (5xx): %s"
+msgstr "errores del servidor (5xx): %s"
+
+#: single_pages/dashboard/security_guard/overview.php:208
+msgid "the hosting refused requests because of the resource limit"
+msgstr "el alojamiento rechazó peticiones por el límite de recursos"
+
+#: single_pages/dashboard/security_guard/traffic.php:39
+msgid "to the admin login"
+msgstr "al inicio de sesión de administración"
+
+#: single_pages/dashboard/security_guard/traffic.php:28
+#, php-format
+msgid "unique IP addresses: %s"
+msgstr "direcciones IP únicas: %s"
+
+#: single_pages/dashboard/security_guard/blocks.php:33
+msgid "unknown"
+msgstr "desconocido"
+
+#: src/Audit/Checklist.php:445
+msgid "unlimited time"
+msgstr "tiempo ilimitado"
+
+#: single_pages/dashboard/security_guard/overview.php:201
+msgid "visitors, search engines, bots and attacks together"
+msgstr "visitantes, buscadores, bots y ataques en conjunto"

@@ -16,6 +16,8 @@ use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard
  * @var int $lastIngestAt
  * @var array $sources
  * @var string $excludedIps
+ * @var array|null $botRanges
+ * @var bool $canUpdateRanges
  */
 $pageUrl = (string) ($sgPageUrl ?? $view->action('view'));
 $v = static function (string $k) use ($sum) {
@@ -27,6 +29,13 @@ $tiles = [
     [t('Attacks'), Format::num($v('attackRequests')), t('from %s IP addresses', Format::num($v('attackIps'))), false],
     [t('Attacks (report method)'), Format::num($report['attackRequests'] ?? 0), t('from %s IP addresses; counted by URL pattern, as in the monthly report', Format::num($report['attackIps'] ?? 0)), false],
     [t('Refused by the server (403)'), Format::num($v('blocked403')), t('by .htaccess or the firewall'), false],
+];
+$hostWaf = (array) ($breakdown['hostWaf'] ?? []);
+$hasHostWaf = $v('hostWafBlocked') > 0 || !empty($hostWaf['categories']);
+if ($hasHostWaf) {
+    $tiles[] = [t('Blocked by the server (before PHP)'), Format::num($v('hostWafBlocked')), t('from %s IP addresses; hosting firewall (ModSecurity/Imunify) and .htaccess rules', (!empty($sum['hostWafIpsApprox']) ? '≈' : '') . Format::num($v('hostWafIps'))), false];
+}
+$tiles = [...$tiles,
     [t('Failed logins'), Format::num($v('loginFailed')), t('to the admin login'), false],
     [t('Not found (404)'), Format::num($v('errors404')), t('server errors (5xx): %s', Format::num($v('errors5xx'))), false],
     [t('Overload (508)'), Format::num($v('overload508')), t('refused by the hosting'), $v('overload508') > 0],
@@ -94,6 +103,36 @@ $table = static function (array $pairs, string $keyTitle, bool $isUrl) {
             <div class="sg-card-head"><h3><?= h(t('Attacks by day')) ?></h3></div>
             <?php View::element('chart_bars', ['points' => $series['attackRequests'], 'unit' => t('attacks'), 'aria' => t('Attacks by day')], 'security_guard'); ?>
         </section>
+        <?php if ($hasHostWaf) { ?>
+            <section class="sg-card sg-avoid-break">
+                <div class="sg-card-head">
+                    <h3><?= h(t('Blocked by the server (before PHP) by day')) ?></h3>
+                    <span class="sg-muted small"><?= h(t('The hosting firewall (ModSecurity/Imunify) or .htaccess rules rejected these requests with 403 before PHP; Security Guard never saw them')) ?></span>
+                </div>
+                <?php View::element('chart_bars', ['points' => $series['hostWafBlocked'], 'unit' => t('requests'), 'height' => 190, 'labels' => 2, 'aria' => t('Blocked by the server (before PHP) by day')], 'security_guard'); ?>
+                <div class="row g-3 mt-1">
+                    <div class="col-lg-6">
+                        <div class="sg-source-label"><?= h(t('Attack types')) ?></div>
+                        <?php
+                        $rows = [];
+                        foreach (Format::pairs($hostWaf['categories'] ?? [], 12) as [$cat, $n]) {
+                            $rows[] = ['label' => Format::categoryLabel($cat), 'value' => $n];
+                        }
+                        View::element('chart_hbars', ['rows' => $rows], 'security_guard');
+                        ?>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="sg-source-label"><?= h(t('Top rules')) ?></div>
+                        <?php $table(Format::pairs($hostWaf['topRules'] ?? [], 10), t('Rule'), false); ?>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="sg-source-label"><?= h(t('Top IP addresses')) ?></div>
+                        <?php $table(Format::pairs($hostWaf['topIps'] ?? [], 10), t('IP address'), false); ?>
+                    </div>
+                </div>
+            </section>
+        <?php } ?>
+
         <div class="row g-3 sg-row">
             <div class="col-lg-6">
                 <section class="sg-card h-100 sg-avoid-break">
@@ -208,6 +247,38 @@ $table = static function (array $pairs, string $keyTitle, bool $isUrl) {
             </div>
         </div>
     <?php } ?>
+
+    <section class="sg-card">
+        <div class="sg-card-head">
+            <h3><?= h(t('Search bot IP ranges')) ?></h3>
+            <?php if ($canUpdateRanges) { ?>
+                <form method="post" action="<?= h((string) $view->action('update_ranges')) ?>" class="d-print-none" data-sg-busy="<?= h(t('Updating…')) ?>">
+                    <?php $token->output('sg_update_ranges'); ?>
+                    <?php foreach ($period->query() as $qk => $qv) { ?><input type="hidden" name="<?= h($qk) ?>" value="<?= h($qv) ?>"><?php } ?>
+                    <button type="submit" class="btn btn-outline-primary btn-sm"><?= h(t('Update bot ranges now')) ?></button>
+                </form>
+            <?php } ?>
+        </div>
+        <?php if (!$botRanges) { ?>
+            <p class="sg-muted mb-0"><?= h(t('Using the built-in ranges. They are updated with the package; automatic updates run through the cron command security-guard:update-ranges.')) ?></p>
+        <?php } else { ?>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle sg-table mb-0">
+                    <thead><tr><th><?= h(t('Bot')) ?></th><th class="text-end"><?= h(t('Ranges')) ?></th><th><?= h(t('Updated')) ?></th><th><?= h(t('Source')) ?></th></tr></thead>
+                    <tbody>
+                    <?php foreach ($botRanges as $br) { ?>
+                        <tr>
+                            <td><?= h(Format::truncate($br['bot'], 40)) ?></td>
+                            <td class="text-end sg-num"><?= h(Format::num($br['count'])) ?></td>
+                            <td class="text-nowrap small"><?= h(Format::dateTime($br['fetchedAt'])) ?><?php if ($br['fetchedAt'] > 0) { ?><div class="sg-muted"><?= h(Format::relative($br['fetchedAt'])) ?></div><?php } ?></td>
+                            <td class="sg-url small"><?= h(Format::truncate($br['source'], 120)) ?></td>
+                        </tr>
+                    <?php } ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php } ?>
+    </section>
 
     <section class="sg-card">
         <div class="sg-card-head">

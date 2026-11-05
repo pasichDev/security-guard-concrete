@@ -20,6 +20,7 @@ final class Commands
         IngestCommand::class,
         CleanupCommand::class,
         StatsCommand::class,
+        UpdateRangesCommand::class,
     ];
 
     public static function register(Application $app): void

@@ -39,7 +39,7 @@ $p = LogParser::parse('35.205.215.15 - - [02/Nov/2026:11:26:05 +0200] "-" 400 15
 T::ok($p !== null && $p['status'] === 400 && $p['uri'] === '' && $p['method'] === '', 'empty request still a request');
 $p = LogParser::parse('146.70.40.68 - - [01/Nov/2026:10:29:17 +0200] "" 400 0 "-" "-"');
 T::ok($p !== null && $p['status'] === 400, 'empty quoted request');
-$p = LogParser::parse('1.1.1.1 - - [04/Nov/2026:22:38:01 +0200] "GET http://example.test/x/y.jpg?z HTTP/1.1" 301 306 "-" "-"');
+$p = LogParser::parse('1.1.1.1 - - [04/Nov/2026:22:38:01 +0200] "GET http://example.org/x/y.jpg?z HTTP/1.1" 301 306 "-" "-"');
 T::eq('/x/y.jpg', $p['path'], 'absolute URI path');
 T::eq(null, LogParser::parse('garbage'), 'garbage rejected');
 T::eq(null, LogParser::parse('1.2.3.4 - - [99/Foo/2026:10:00:00 +0300] "GET / HTTP/1.1" 200 1'), 'bad date rejected');
@@ -73,10 +73,10 @@ $est = (new CardinalitySketch($s->serialize()))->count();
 T::ok(abs($est - 5000) < 300, "HLL estimate within 6% ($est)");
 
 // ---------- Потоки
-T::eq('example.test-ssl_log', SourceLocator::streamOf('/h/logs/example.test-ssl_log-Oct-2026_NGINX.gz'), 'stream of nginx archive');
-T::eq('example.test-ssl_log', SourceLocator::streamOf('/h/access-logs/example.test-ssl_log'), 'stream of live ssl');
-T::eq('example.test', SourceLocator::streamOf('/h/logs/example.test-Oct-2026.gz'), 'stream of http archive');
-T::eq('example.test', SourceLocator::normalizeDomain('https://www.Example.test/'), 'normalize domain');
+T::eq('example.org-ssl_log', SourceLocator::streamOf('/h/logs/example.org-ssl_log-Oct-2026_NGINX.gz'), 'stream of nginx archive');
+T::eq('example.org-ssl_log', SourceLocator::streamOf('/h/access-logs/example.org-ssl_log'), 'stream of live ssl');
+T::eq('example.org', SourceLocator::streamOf('/h/logs/example.org-Oct-2026.gz'), 'stream of http archive');
+T::eq('example.org', SourceLocator::normalizeDomain('https://www.Example.org/'), 'normalize domain');
 $tmpHome = sys_get_temp_dir() . '/sg-home-' . getmypid();
 @mkdir($tmpHome . '/public_html', 0777, true);
 @mkdir($tmpHome . '/access-logs');
@@ -85,25 +85,25 @@ T::eq($tmpHome, SourceLocator::detectHome($tmpHome . '/public_html'), 'home from
 $tmpHome2 = sys_get_temp_dir() . '/sg-home2-' . getmypid();
 @mkdir($tmpHome2 . '/public_html/logs', 0777, true);
 @mkdir($tmpHome2 . '/logs');
-touch($tmpHome2 . '/logs/example.test-Oct-2026.gz');
-T::eq($tmpHome2, SourceLocator::detectHome($tmpHome2 . '/public_html', 'example.test'), 'home with only logs/ archives, empty docroot logs/ ignored');
+touch($tmpHome2 . '/logs/example.org-Oct-2026.gz');
+T::eq($tmpHome2, SourceLocator::detectHome($tmpHome2 . '/public_html', 'example.org'), 'home with only logs/ archives, empty docroot logs/ ignored');
 
 // ---------- Пошукові краулери: UA + опублікований діапазон IP
 $cv = new CrawlerVerifier(['203.0.113.250' => 'YandexBot']);
 $gua = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
 T::eq('Googlebot', $cv->verify('66.249.66.1', $gua), 'Googlebot from published range verified');
-T::eq(null, $cv->verify('34.62.43.212', $gua), 'Googlebot UA from cloud IP is fake');
+T::eq(null, $cv->verify('198.51.100.77', $gua), 'Googlebot UA from cloud IP is fake');
 T::eq(null, $cv->verify('66.249.66.1', 'curl/8'), 'Google IP without bot UA is not a crawler');
 T::eq('YandexBot', $cv->verify('203.0.113.250', 'Mozilla/5.0 (compatible; YandexBot/3.0)'), 'rDNS-cache verified IP');
-T::eq('Baiduspider', $cv->verify('220.181.108.146', 'Mozilla/5.0 (compatible; Baiduspider/2.0)'), 'Baidu heuristic range');
+T::eq('Baiduspider', $cv->verify('220.181.108.10', 'Mozilla/5.0 (compatible; Baiduspider/2.0)'), 'Baidu heuristic range');
 T::eq('Bingbot', $cv->verify('157.55.39.1', 'Mozilla/5.0 (compatible; bingbot/2.0)'), 'Bingbot range');
 $agg = new DayAggregator(new DateTimeZone('UTC'), new FakeClassifier(), null, null, $cv);
-foreach (['66.249.66.1', '66.249.66.1', '34.62.43.212'] as $ip) {
+foreach (['66.249.66.1', '66.249.66.1', '198.51.100.77'] as $ip) {
     $agg->add(LogParser::parse($ip . ' - - [01/Oct/2026:10:00:00 +0000] "GET /evil/old-joomla HTTP/1.1" 404 10 "-" "' . $gua . '"'));
 }
 $row = $agg->finish()['2026-10-01'];
 T::eq(1, $row['attackRequests'], 'verified crawler hits are not attacks');
-T::eq(['34.62.43.212'], $row['breakdown']['attackIpList'], 'only fake bot is an attacker');
+T::eq(['198.51.100.77'], $row['breakdown']['attackIpList'], 'only fake bot is an attacker');
 T::eq(2, $row['breakdown']['botAttackLike'], 'crawler attack-like hits counted separately');
 T::eq(3, $row['botRequests'], 'all three counted as bot requests');
 T::eq('Googlebot', $row['breakdown']['topIps'][0]['bot'], 'topIps bot field for crawler');
@@ -132,7 +132,7 @@ $make = static function () use ($tz): array {
     return [$e, $c, $p, $d];
 };
 $discover = static function () use ($home): array {
-    return (new SourceLocator($home, 'example.test'))->discover();
+    return (new SourceLocator($home, 'example.org'))->discover();
 };
 $check = static function (MemoryDays $d, array $exp, string $label, array $extraTotal = []): void {
     foreach ($exp as $day => $e) {
@@ -171,7 +171,7 @@ T::eq(0, $r['lines'], 'rerun reads nothing');
 T::eq($w, $days->writes, 'rerun writes nothing');
 
 // 3. Дописали недописаний рядок — лише він новий.
-file_put_contents($home . '/access-logs/example.test-ssl_log', "\n", FILE_APPEND);
+file_put_contents($home . '/access-logs/example.org-ssl_log', "\n", FILE_APPEND);
 clearstatcache();
 $r = $engine->run($discover(), ['now' => $now]);
 T::eq(1, $r['lines'], 'completed partial line read once');
@@ -179,8 +179,8 @@ $check($days, $expected['days'], 'after partial', ['2026-10-04' => 1]);
 
 // 4. Ротація cPanel: нові рядки живого логу дописано в архів окремим gzip-членом, живий лог обрізано
 //    і почато знову рядками за 05.10.
-$live = $home . '/access-logs/example.test-ssl_log';
-$gz = $home . '/logs/example.test-ssl_log-Oct-2026.gz';
+$live = $home . '/access-logs/example.org-ssl_log';
+$gz = $home . '/logs/example.org-ssl_log-Oct-2026.gz';
 $cutTs = (new DateTimeImmutable('2026-10-03 22:00:00', $tz))->getTimestamp();
 $moved = [];
 foreach (file($live, FILE_IGNORE_NEW_LINES) as $line) {

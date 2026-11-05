@@ -24,13 +24,22 @@ final class CrawlerVerifier
     /** @var array<string, string|null> */
     private $memo = [];
 
-    /** @param array<string, string> $verifiedIps ip => назва з кешу rDNS WAF */
-    public function __construct(array $verifiedIps = [])
+    /**
+     * @param array<string, string> $verifiedIps ip => назва з кешу rDNS WAF
+     * @param array<string, string[]> $storedRanges бот => CIDR з SecurityGuardBotRanges (замінюють вбудовані PUBLISHED цього бота)
+     */
+    public function __construct(array $verifiedIps = [], array $storedRanges = [])
     {
         foreach (RuleSet::searchBots() as $name => [$re]) {
             $this->uaRules[$name] = $re;
         }
-        foreach ([CrawlerRanges::PUBLISHED, CrawlerRanges::HEURISTIC] as $set) {
+        $published = CrawlerRanges::PUBLISHED;
+        foreach ($storedRanges as $name => $list) {
+            if (isset($published[$name]) && is_array($list) && $list) {
+                $published[$name] = array_values(array_map('strval', $list));
+            }
+        }
+        foreach ([$published, CrawlerRanges::HEURISTIC] as $set) {
             foreach ($set as $name => $list) {
                 $this->ranges[$name] = isset($this->ranges[$name])
                     ? new IpMatcher(array_merge($this->ranges[$name]->items(), $list))

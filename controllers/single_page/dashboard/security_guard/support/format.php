@@ -156,6 +156,9 @@ final class Format
             'fake_bot' => t('Fake search bot'),
             'blocked_ip' => t('Blocked IP'),
             'manual' => t('Manual block'),
+            'concrete' => t('Concrete CMS internals'),
+            'other' => t('Other'),
+            'unclassified' => t('Unclassified'),
         ];
     }
 

@@ -27,6 +27,7 @@ $groupLabels = [
     'DDoS' => t('DDoS'),
     'Geo' => t('Geo'),
     'Hosting logs' => t('Hosting logs'),
+    'Updates' => t('Updates'),
 ];
 $slug = static function (string $g): string {
     return 'sg-group-' . trim(preg_replace('/[^a-z0-9]+/', '-', strtolower($g)) ?? '', '-');

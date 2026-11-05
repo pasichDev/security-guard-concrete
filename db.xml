@@ -119,11 +119,24 @@
     <field name="errors5xx" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
     <field name="bytes" type="bigint"><unsigned/><notnull/><default value="0"/></field>
     <field name="botRequests" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <!-- 403 від фаєрвола хостингу (ModSecurity/Imunify): відповідь до PHP, впізнана за відбитком розміру сторінки -->
+    <field name="hostWafBlocked" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+    <field name="hostWafIps" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
     <!-- JSON: categories, rules, topIps [{ip,count,attacks,bot}], topAttackIps [{ip,count,bot}], topUrls, top404,
          hours[24], hoursAttacks[24], statuses, bots, attackIpList (≤1000), ipSketch/attackIpSketch (HLL),
-         excluded, partialLines, botAttackLike, report {attackRequests, attackIps, attackIpList, loginFailed, categories} -->
+         excluded, partialLines, botAttackLike, report {attackRequests, attackIps, attackIpList, loginFailed, categories},
+         hostWaf {categories, topRules, topIps, topUrls, ipList, ipListTruncated} -->
     <field name="breakdown" type="text"/>
     <field name="updatedAt" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
+  </table>
+
+  <!-- Діапазони IP пошукових ботів, оновлені з офіційних джерел (перекривають вбудовані). -->
+  <table name="SecurityGuardBotRanges">
+    <field name="bot" type="string" size="32"><key/></field>
+    <!-- JSON-масив CIDR -->
+    <field name="ranges" type="text"/>
+    <field name="source" type="string" size="255"/>
+    <field name="fetchedAt" type="integer" size="10"><unsigned/><notnull/><default value="0"/></field>
   </table>
 
   <!-- Позиції читання файлів логів (щоб не рахувати двічі при повторному запуску й ротації). -->

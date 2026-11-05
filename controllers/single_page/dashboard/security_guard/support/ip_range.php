@@ -77,7 +77,7 @@ final class IpRange
     {
         $valid = [];
         $errors = [];
-        foreach (preg_split('/\R/', $text) ?: [] as $line) {
+        foreach (preg_split('/\r\n|\r|\n/', $text) ?: [] as $line) {
             $line = trim(preg_replace('/#.*$/', '', $line) ?? '');
             if ($line === '') {
                 continue;

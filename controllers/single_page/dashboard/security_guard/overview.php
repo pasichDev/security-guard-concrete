@@ -76,6 +76,10 @@ class Overview extends BaseController
         $tiles['loginFailed'] = (int) ($statSum['loginFailed'] ?? 0);
         $tiles['bruteforce'] = (int) ($sum['byCategory']['bruteforce'] ?? 0);
         $tiles['overload'] = (int) ($statSum['overload508'] ?? 0);
+        // Фаєрвол хостингу (ModSecurity/Imunify): 403 до PHP, видно лише з логів. У старих рядках полів немає.
+        $tiles['hostWaf'] = (int) ($statSum['hostWafBlocked'] ?? 0);
+        $tiles['hostWafIps'] = (int) ($statSum['hostWafIps'] ?? 0);
+        $tiles['hostWafIpsApprox'] = !empty($statSum['hostWafIpsApprox']);
         $this->set('tiles', $tiles);
 
         // Ряди для графіків по днях періоду.
@@ -86,7 +90,8 @@ class Overview extends BaseController
             }
         }
         $wafByDay = (array) ($sum['byDay'] ?? []);
-        $series = ['waf' => [], 'logAttacks' => [], 'total' => [], 'overload' => []];
+        $series = ['waf' => [], 'logAttacks' => [], 'total' => [], 'overload' => [], 'wafVsHost' => []];
+        $hasHostWaf = false;
         foreach ($period->days() as $d) {
             $label = substr($d, 8, 2) . '.' . substr($d, 5, 2);
             $title = substr($d, 8, 2) . '.' . substr($d, 5, 2) . '.' . substr($d, 0, 4);
@@ -94,15 +99,21 @@ class Overview extends BaseController
             $series['logAttacks'][] = ['label' => $label, 'title' => $title, 'value' => (int) ($byStatDay[$d]['attackRequests'] ?? 0)];
             $series['total'][] = ['label' => $label, 'title' => $title, 'value' => (int) ($byStatDay[$d]['totalRequests'] ?? 0)];
             $series['overload'][] = ['label' => $label, 'title' => $title, 'value' => (int) ($byStatDay[$d]['overload508'] ?? 0)];
+            $host = (int) ($byStatDay[$d]['hostWafBlocked'] ?? 0);
+            $hasHostWaf = $hasHostWaf || $host > 0;
+            $series['wafVsHost'][] = ['label' => $label, 'title' => $title, 'values' => [(int) ($wafByDay[$d] ?? 0), $host]];
         }
         $this->set('series', $series);
+        $this->set('hasHostWaf', $hasHostWaf || $tiles['hostWaf'] > 0);
         $this->set('hasStats', !empty($byStatDay));
 
         // Обидва джерела: журнал фаєрвола (живі події) і логи хостингу (усі запити,
         // зокрема ті, що не дійшли до PHP). Огляд не має бути порожнім, коли логи мають дані.
         $logBreakdown = (array) ($statSum['breakdown'] ?? []);
+        $hostBreakdown = (array) ($logBreakdown['hostWaf'] ?? []);
         $this->set('categorySources', [
             'waf' => (array) ($sum['byCategory'] ?? []),
+            'hostWaf' => (array) ($hostBreakdown['categories'] ?? []),
             'logs' => (array) ($logBreakdown['categories'] ?? []),
         ]);
 
@@ -112,21 +123,31 @@ class Overview extends BaseController
             if ($ip === '') {
                 continue;
             }
-            $ips[$ip] = ['ip' => $ip, 'waf' => (int) ($row['count'] ?? 0), 'logs' => 0, 'country' => strtoupper((string) ($row['country'] ?? '')), 'bot' => ''];
+            $ips[$ip] = ['ip' => $ip, 'waf' => (int) ($row['count'] ?? 0), 'host' => 0, 'logs' => 0, 'country' => strtoupper((string) ($row['country'] ?? '')), 'bot' => ''];
         }
         foreach (Format::pairs($logBreakdown['topAttackIps'] ?? [], 20) as [$ip, $n, $raw]) {
             if ($ip === '') {
                 continue;
             }
-            $ips[$ip] = ($ips[$ip] ?? ['ip' => $ip, 'waf' => 0, 'logs' => 0, 'country' => '', 'bot' => '']);
+            $ips[$ip] = ($ips[$ip] ?? ['ip' => $ip, 'waf' => 0, 'host' => 0, 'logs' => 0, 'country' => '', 'bot' => '']);
             $ips[$ip]['logs'] = $n;
             // Поле bot може бути відсутнім у старих рядках.
             if (!empty($raw['bot']) && is_string($raw['bot'])) {
                 $ips[$ip]['bot'] = $raw['bot'];
             }
         }
+        foreach (Format::pairs($hostBreakdown['topIps'] ?? [], 20) as [$ip, $n, $raw]) {
+            if ($ip === '') {
+                continue;
+            }
+            $ips[$ip] = ($ips[$ip] ?? ['ip' => $ip, 'waf' => 0, 'host' => 0, 'logs' => 0, 'country' => '', 'bot' => '']);
+            $ips[$ip]['host'] = $n;
+            if (!empty($raw['bot']) && is_string($raw['bot'])) {
+                $ips[$ip]['bot'] = $raw['bot'];
+            }
+        }
         uasort($ips, static function ($a, $b) {
-            return max($b['waf'], $b['logs']) <=> max($a['waf'], $a['logs']);
+            return max($b['waf'], $b['host'], $b['logs']) <=> max($a['waf'], $a['host'], $a['logs']);
         });
         $ips = array_slice(array_values($ips), 0, 10);
         $blocks = $this->lazy(BlockServiceInterface::class);

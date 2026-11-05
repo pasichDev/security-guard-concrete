@@ -74,14 +74,15 @@ final class StatsCommand extends Command
             $table->addRow(['Total', $sum['totalRequests'], $rep['attackRequests'], $rep['attackIps'] . ($rep['attackIpsApprox'] ? ' ~' : ''),
                 $rep['loginFailed'], $sum['blocked403'], $sum['overload508']]);
         } else {
-            $table->setHeaders(['Day', 'Requests', 'IPs', 'Attacks', 'Attack IPs', 'Login failed', '403', '404', '5xx', '508', 'Bots', 'MB']);
+            $table->setHeaders(['Day', 'Requests', 'IPs', 'Attacks', 'Attack IPs', 'Login failed', '403', 'Host 403', 'Host IPs', '404', '5xx', '508', 'Bots', 'MB']);
             foreach ($days as $r) {
                 $table->addRow([$r['day'], $r['totalRequests'], $r['uniqueIps'], $r['attackRequests'], $r['attackIps'], $r['loginFailed'],
-                    $r['blocked403'], $r['errors404'], $r['errors5xx'], $r['overload508'], $r['botRequests'], round($r['bytes'] / 1048576, 1)]);
+                    $r['blocked403'], $r['hostWafBlocked'], $r['hostWafIps'], $r['errors404'], $r['errors5xx'], $r['overload508'], $r['botRequests'], round($r['bytes'] / 1048576, 1)]);
             }
             $table->addRow(new TableSeparator());
             $table->addRow(['Total', $sum['totalRequests'], $sum['uniqueIps'] . ($sum['uniqueIpsApprox'] ? ' ~' : ''), $sum['attackRequests'],
-                $sum['attackIps'] . ($sum['attackIpsApprox'] ? ' ~' : ''), $sum['loginFailed'], $sum['blocked403'], $sum['errors404'],
+                $sum['attackIps'] . ($sum['attackIpsApprox'] ? ' ~' : ''), $sum['loginFailed'], $sum['blocked403'], $sum['hostWafBlocked'],
+                $sum['hostWafIps'] . ($sum['hostWafIpsApprox'] ? ' ~' : ''), $sum['errors404'],
                 $sum['errors5xx'], $sum['overload508'], $sum['botRequests'], round($sum['bytes'] / 1048576, 1)]);
         }
         $table->render();
@@ -93,6 +94,13 @@ final class StatsCommand extends Command
                 $parts[] = $c . ' ' . $n;
             }
             $output->writeln('Attack categories: ' . implode(', ', $parts));
+        }
+        if (!$compat && $sum['breakdown']['hostWaf']['categories']) {
+            $parts = [];
+            foreach ($sum['breakdown']['hostWaf']['categories'] as $c => $n) {
+                $parts[] = $c . ' ' . $n;
+            }
+            $output->writeln('Blocked by the hosting server before PHP ("Host 403"), by category: ' . implode(', ', $parts));
         }
 
         return static::SUCCESS;

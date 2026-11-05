@@ -23,6 +23,7 @@
   --sg-grid: var(--bs-border-color-translucent, #ecebe7);
   --sg-tip-bg: #0b0b0b;
   --sg-tip-ink: #fff;
+  --sg-s2: #86b6ef;
 }
 [data-bs-theme="dark"] .sg-page,
 [data-bs-theme="dark"] .sg-dashboard-card {
@@ -38,6 +39,7 @@
   --sg-good: #5cc48a;
   --sg-tip-bg: #f2f2f2;
   --sg-tip-ink: #111;
+  --sg-s2: #a8cdf5;
 }
 
 .sg-page { color: var(--sg-ink); }
@@ -130,6 +132,14 @@ a.sg-tile:hover { border-color: var(--sg-s1-soft); color: inherit; }
 .sg-chart-empty { color: var(--sg-ink-3); font-size: .875rem; padding: 1.25rem 0; text-align: center; background: var(--sg-surface-2); border-radius: 6px; }
 .sg-tip { position: absolute; pointer-events: none; background: var(--sg-tip-bg); color: var(--sg-tip-ink); font-size: 12.5px; padding: 5px 9px; border-radius: 6px; white-space: nowrap; opacity: 0; transition: opacity .08s; transform: translate(-50%, calc(-100% - 6px)); z-index: 5; font-variant-numeric: tabular-nums; }
 .sg-tip.sg-tip-on { opacity: 1; }
+
+/* Два ряди поруч: фаєрвол пакета (основний колір) і фаєрвол хостингу (світліший) */
+.sg-chart .sg-bar.sg-series-1, .sg-swatch.sg-series-1 { fill: var(--sg-s2); background: var(--sg-s2); }
+.sg-swatch.sg-series-0 { background: var(--sg-s1); }
+.sg-legend { display: flex; flex-wrap: wrap; gap: .25rem 1rem; font-size: .8rem; color: var(--sg-ink-2); margin-bottom: .25rem; }
+.sg-legend-item { display: inline-flex; align-items: center; gap: .35rem; }
+.sg-swatch { display: inline-block; width: .75rem; height: .75rem; border-radius: 2px; }
+.sg-hbar-soft { background: var(--sg-s2); }
 
 /* Горизонтальні смуги */
 .sg-hbars { display: grid; gap: .45rem; }
@@ -232,7 +242,7 @@ tr.sg-expired td { color: var(--sg-ink-3); }
   .sg-page { font-size: 12px; }
   .sg-card, .sg-tile { break-inside: avoid; border-color: #ccc; }
   .sg-avoid-break { break-inside: avoid; }
-  .sg-chart .sg-bar, .sg-hbar, .sg-tile-critical, .sg-meter-fill, .sg-audit-mark, .badge {
+  .sg-chart .sg-bar, .sg-hbar, .sg-swatch, .sg-tile-critical, .sg-meter-fill, .sg-audit-mark, .badge {
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   .sg-row > [class*="col-lg"] { width: 50%; }

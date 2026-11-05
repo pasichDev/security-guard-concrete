@@ -46,6 +46,12 @@ final class IngestEngine
     private $clock;
     /** @var CrawlerVerifier */
     private $crawlers;
+    /** @var HostWafStateStoreInterface|null */
+    private $hostWafState;
+    /** @var int[] розміри сторінки 403 хостингу для поточного запуску */
+    private $hostWafSizes = [];
+    /** @var array стан детектора, якщо сховища немає (тести) */
+    private $memoryHostWafState = [];
 
     public function __construct(
         DateTimeZone $tz,
@@ -54,8 +60,10 @@ final class IngestEngine
         CursorStoreInterface $cursors,
         PendingDaysStoreInterface $pending,
         DayWriterInterface $writer,
-        ?CrawlerVerifier $crawlers = null
+        ?CrawlerVerifier $crawlers = null,
+        ?HostWafStateStoreInterface $hostWafState = null
     ) {
+        $this->hostWafState = $hostWafState;
         $this->crawlers = $crawlers ?? new CrawlerVerifier();
         $this->tz = $tz;
         $this->classifierFactory = $classifierFactory;
@@ -68,8 +76,9 @@ final class IngestEngine
 
     /**
      * @param array<string, array{size:int, mtime:int, stream:string}> $sources SourceLocator::discover()
-     * @param array{rebuild?:bool, days?:int, timeBudget?:int, now?:int, deadlineAt?:float} $options
-     * @return array{files:int, lines:int, days:string[], finished:bool, errors:string[], pending:int, deduplicated:int, malformed:int}
+     * @param array{rebuild?:bool, days?:int, timeBudget?:int, now?:int, deadlineAt?:float, hostWafDetect?:bool, hostWafSizes?:string} $options
+     *   hostWafSizes — розміри з налаштування (порожнє = автовизначення HostWafDetector)
+     * @return array{files:int, lines:int, days:string[], finished:bool, errors:string[], pending:int, deduplicated:int, malformed:int, hostWafSizes:int[]}
      */
     public function run(array $sources, array $options = []): array
     {
@@ -87,9 +96,16 @@ final class IngestEngine
                 ->modify('-' . ((int) $options['days'] - 1) . ' days')->format('Y-m-d');
         }
 
-        $result = ['files' => 0, 'lines' => 0, 'days' => [], 'finished' => false, 'errors' => [], 'pending' => 0, 'deduplicated' => 0, 'malformed' => 0];
+        $result = ['files' => 0, 'lines' => 0, 'days' => [], 'finished' => false, 'errors' => [], 'pending' => 0, 'deduplicated' => 0, 'malformed' => 0, 'hostWafSizes' => []];
         $stored = $this->cursors->load();
         $pending = $rebuild ? [] : array_fill_keys($this->pending->get(), true);
+
+        $hwDetect = !array_key_exists('hostWafDetect', $options) || !empty($options['hostWafDetect']);
+        $hwExplicit = HostWafDetector::parseSizes((string) ($options['hostWafSizes'] ?? ''));
+        $hwAuto = $hwDetect && !$hwExplicit;
+        $hwPrevState = $rebuild ? [] : $this->loadHostWafState();
+        $detector = new HostWafDetector($hwPrevState);
+        $hwBefore = $detector->confirmed();
 
         // ---- Прохід A
         $states = [];
@@ -140,6 +156,9 @@ final class IngestEngine
                     } else {
                         ++$result['lines'];
                         $newDays[$this->clock->dayOf($ts)] = true;
+                        if ($hwAuto) {
+                            $detector->observeLine($line);
+                        }
                         if ($min === 0 || $ts < $min) {
                             $min = $ts;
                         }
@@ -162,12 +181,29 @@ final class IngestEngine
             $states[$path] = self::cursorRow($path, $hashNow, $min, $max, $size, $position, $completed, $now) + ['stream' => $meta['stream']];
         }
 
+        if ($hwAuto && !$rebuild && $detector->confirmed() !== $hwBefore) {
+            // Знайдено новий відбиток сторінки 403 хостингу: дні, пораховані раніше
+            // без нього, застаріли — перераховуємо всі дні наявних файлів.
+            foreach ($states as $st) {
+                [, $fmin, $fmax] = self::decodeFingerprint($st['fingerprint']);
+                if ($fmin > 0 && $fmax >= $fmin) {
+                    for ($t = $fmin; $t <= $fmax + 86400; $t += 86400) {
+                        $newDays[$this->clock->dayOf(min($t, $fmax))] = true;
+                    }
+                }
+            }
+        }
         foreach (array_keys($newDays) as $day) {
             if ($minDay === '' || strcmp((string) $day, $minDay) >= 0) {
                 $pending[(string) $day] = true;
             }
         }
         $this->pending->set(self::sortedDays($pending));
+        if ($hwAuto) {
+            $this->saveHostWafState($detector->state());
+        }
+        $this->hostWafSizes = !$hwDetect ? [] : ($hwExplicit ?: $detector->confirmed());
+        $result['hostWafSizes'] = $this->hostWafSizes;
         $this->cursors->save(array_map(static function (array $r): array {
             unset($r['stream']);
 
@@ -233,6 +269,7 @@ final class IngestEngine
         $from = $this->localMidnight($days[0]);
         $to = $this->localMidnight($days[count($days) - 1], 1);
         $agg = new DayAggregator($this->tz, ($this->classifierFactory)(), $this->exclude, $days, $this->crawlers);
+        $agg->setHostWafSizes($this->hostWafSizes);
 
         $files = [];
         foreach ($ranges as $path => $r) {
@@ -288,6 +325,26 @@ final class IngestEngine
         }
 
         return $agg->finish();
+    }
+
+    /** Розміри сторінки 403 хостингу, з якими рахує computeDays() (для прямого виклику). */
+    public function setHostWafSizes(array $sizes): void
+    {
+        $this->hostWafSizes = array_values(array_map('intval', $sizes));
+    }
+
+    private function loadHostWafState(): array
+    {
+        return $this->hostWafState !== null ? $this->hostWafState->getHostWafState() : $this->memoryHostWafState;
+    }
+
+    private function saveHostWafState(array $state): void
+    {
+        if ($this->hostWafState !== null) {
+            $this->hostWafState->setHostWafState($state);
+        } else {
+            $this->memoryHostWafState = $state;
+        }
     }
 
     public function localMidnight(string $day, int $plusDays = 0): int

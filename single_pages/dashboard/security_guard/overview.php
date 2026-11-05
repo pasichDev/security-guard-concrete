@@ -15,6 +15,7 @@ use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard
  * @var array $statSum
  * @var array $series
  * @var bool $hasStats
+ * @var bool $hasHostWaf
  * @var array $topIps
  * @var array $categorySources
  * @var array $countrySources
@@ -115,6 +116,13 @@ $durationLabels = [
             <div class="sg-tile-v"><?= h(Format::num($tiles['loginFailed'])) ?></div>
             <div class="sg-tile-s"><?= h(t('hosting logs; password guessing events: %s', Format::num($tiles['bruteforce']))) ?></div>
         </div>
+        <?php if ($hasHostWaf) { ?>
+            <div class="sg-tile">
+                <div class="sg-tile-k"><?= h(t('Blocked by the server (before PHP)')) ?></div>
+                <div class="sg-tile-v"><?= h(Format::num($tiles['hostWaf'])) ?></div>
+                <div class="sg-tile-s"><?= h(t('from %s IP addresses; hosting firewall (ModSecurity/Imunify) and .htaccess rules', (!empty($tiles['hostWafIpsApprox']) ? '≈' : '') . Format::num($tiles['hostWafIps']))) ?></div>
+            </div>
+        <?php } ?>
         <div class="sg-tile<?= $tiles['overload'] > 0 ? ' sg-tile-critical' : '' ?>">
             <div class="sg-tile-k"><?= h(t('Overload (508)')) ?></div>
             <div class="sg-tile-v"><?= h(Format::num($tiles['overload'])) ?></div>
@@ -170,9 +178,13 @@ $durationLabels = [
     <section class="sg-card sg-avoid-break">
         <div class="sg-card-head">
             <h3><?= h(t('Attacks by day — firewall')) ?></h3>
-            <span class="sg-muted small"><?= h(t('requests detected by the firewall on this site')) ?></span>
+            <span class="sg-muted small"><?= h($hasHostWaf ? t('Security Guard on this site and requests the server rejected before PHP') : t('requests detected by the firewall on this site')) ?></span>
         </div>
-        <?php View::element('chart_bars', ['points' => $series['waf'], 'unit' => t('attacks'), 'aria' => t('Attacks by day — firewall')], 'security_guard'); ?>
+        <?php if ($hasHostWaf) {
+            View::element('chart_grouped', ['points' => $series['wafVsHost'], 'series' => [t('Security Guard'), t('Server (before PHP)')], 'unit' => '', 'aria' => t('Attacks by day — firewall')], 'security_guard');
+        } else {
+            View::element('chart_bars', ['points' => $series['waf'], 'unit' => t('attacks'), 'aria' => t('Attacks by day — firewall')], 'security_guard');
+        } ?>
     </section>
 
     <?php if ($hasStats) { ?>
@@ -204,7 +216,7 @@ $durationLabels = [
     <?php
     // Блок «два джерела»: показуємо ті, де є дані; якщо даних немає ніде — одне повідомлення.
     $twoSources = static function (array $sources, callable $toRows, string $empty) {
-        $labels = ['waf' => t('Firewall log'), 'logs' => t('Hosting logs')];
+        $labels = ['waf' => t('Firewall log'), 'hostWaf' => t('Server (before PHP)'), 'logs' => t('Hosting logs')];
         $shown = 0;
         foreach ($sources as $key => $data) {
             $rows = $toRows($data);
@@ -221,7 +233,7 @@ $durationLabels = [
             <div class="sg-chart-empty"><?= h($empty) ?></div>
         <?php } elseif ($shown === 1) {
             foreach ($sources as $key => $data) {
-                if (!$toRows($data)) { ?>
+                if ($key !== 'hostWaf' && !$toRows($data)) { ?>
                     <p class="small sg-muted mb-0 mt-2"><?= h($key === 'waf' ? t('The firewall log has no events for this period yet.') : t('No hosting log data for this period.')) ?></p>
                 <?php }
             }
@@ -276,6 +288,7 @@ $durationLabels = [
                         <th><?= h(t('IP address')) ?></th>
                         <th><?= h(t('Country')) ?></th>
                         <th class="text-end"><?= h(t('Firewall log')) ?></th>
+                        <?php if ($hasHostWaf) { ?><th class="text-end"><?= h(t('Server (before PHP)')) ?></th><?php } ?>
                         <th class="text-end"><?= h(t('Hosting logs')) ?></th>
                         <th class="d-print-none"><?= h(t('Action')) ?></th>
                     </tr></thead>
@@ -287,6 +300,7 @@ $durationLabels = [
                             <td><a class="sg-ip" href="<?= h((string) URL::to('/dashboard/security_guard/events') . '?ip=' . rawurlencode($ip)) ?>"><?= h($ip) ?></a></td>
                             <td class="text-nowrap"><?= h(trim(Format::flag($cc) . ' ' . strtoupper($cc))) ?: '—' ?></td>
                             <td class="text-end sg-num"><?= (int) $row['waf'] > 0 ? h(Format::num($row['waf'])) : '—' ?></td>
+                            <?php if ($hasHostWaf) { ?><td class="text-end sg-num"><?= (int) ($row['host'] ?? 0) > 0 ? h(Format::num($row['host'])) : '—' ?></td><?php } ?>
                             <td class="text-end sg-num"><?= (int) $row['logs'] > 0 ? h(Format::num($row['logs'])) : '—' ?></td>
                             <td class="d-print-none">
                                 <?php if (!empty($row['banned'])) { ?>

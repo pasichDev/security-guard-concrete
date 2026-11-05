@@ -26,6 +26,8 @@ class Settings extends BaseController
         'log_exclude_ips' => 'ranges',
         'honeypot_custom_urls' => 'paths',
         'log_sources' => 'sources',
+        'log_root' => 'path',
+        'host_waf_sizes' => 'sizes',
         'notify_emails' => 'emails',
         'geo_block_countries' => 'countries',
     ];
@@ -240,6 +242,26 @@ class Settings extends BaseController
                 }
 
                 return implode("\n", $lines);
+            case 'path':
+                $raw = trim($raw);
+                if ($raw !== '' && (strlen($raw) > 255 || preg_match('#(^|/)\.\.(/|$)#', $raw) || preg_match('/^[a-z][a-z0-9+.-]*:\/\//i', $raw) || preg_match('/[\r\n]/', $raw))) {
+                    $this->error->add(t('%s: "%s" is not a local file path.', $label, mb_substr($raw, 0, 60)));
+                }
+
+                return $raw;
+            case 'sizes':
+                $sizes = array_values(array_filter(array_map('trim', preg_split('/[\s,;]+/', $raw) ?: []), 'strlen'));
+                foreach ($sizes as $n) {
+                    if (!preg_match('/^\d{1,7}$/', $n) || (int) $n < 1) {
+                        $this->error->add(t('%s: "%s" is not a response size in bytes.', $label, mb_substr($n, 0, 20)));
+                        break;
+                    }
+                }
+                if (count($sizes) > 20) {
+                    $this->error->add(t('No more than %s lines are allowed.', 20));
+                }
+
+                return implode(', ', array_slice(array_unique($sizes), 0, 20));
             case 'emails':
                 $emails = array_values(array_filter(array_map('trim', preg_split('/[\s,;]+/', $raw) ?: []), 'strlen'));
                 foreach ($emails as $e) {
@@ -273,7 +295,7 @@ class Settings extends BaseController
     /** @return string[] */
     protected function lines(string $raw, int $max): array
     {
-        $lines = array_values(array_filter(array_map('trim', preg_split('/\R/', $raw) ?: []), 'strlen'));
+        $lines = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', $raw) ?: []), 'strlen'));
         if (count($lines) > $max) {
             $this->error->add(t('No more than %s lines are allowed.', $max));
             $lines = array_slice($lines, 0, $max);
@@ -321,6 +343,7 @@ class Settings extends BaseController
             'rules_webshells' => [t('Web shells'), ''],
             'rules_sensitive_files' => [t('Sensitive files (.env, .git, backups)'), ''],
             'rules_bad_user_agents' => [t('Known scanners (by user agent)'), ''],
+            'rules_concrete' => [t('Probing of Concrete CMS internals'), t('Direct requests to concrete/ and application/ code, old /tools/ URLs, the installer and version files. Editors never request these.')],
             'rules_http_libraries' => [t('HTTP libraries (curl, wget, python-requests)'), t('May block uptime monitors and integrations.')],
             'rules_ai_crawlers' => [t('AI crawlers'), ''],
             'scan_post_body' => [t('Check POST data'), t('Public pages only; the dashboard is never checked.')],
@@ -347,6 +370,10 @@ class Settings extends BaseController
             'ddos_auto_block' => [t('Block the top IPs of a spike automatically'), ''],
             'geo_lookup' => [t('Detect the country of an IP'), t('Offline, without external services.')],
             'geo_block_countries' => [t('Block countries'), t('Two-letter codes, comma-separated, for example RU, BY. Empty = no geo block.')],
+            'log_root' => [t('Hosting account home directory'), t('The directory that contains access-logs/ and logs/, for example /home/account. Empty = detect automatically.')],
+            'host_waf_detect' => [t('Count requests the server rejected before PHP'), t('The server can reject requests with its own 403 page before PHP runs: the hosting firewall (ModSecurity/Imunify) and .htaccess rules look the same in the logs. Security Guard never sees these requests; they are counted from the access logs as a separate source.')],
+            'host_waf_sizes' => [t('Size of the server 403 page, bytes'), t('Comma-separated response sizes that identify the server 403 page. Empty = detect automatically.')],
+            'bot_ranges_auto_update' => [t('Update search bot IP ranges automatically'), t('The cron command security-guard:update-ranges downloads the official ranges published by Google, Bing and others. Without it the built-in ranges are used.')],
             'log_sources' => [t('Access log files'), t('One path or pattern per line. Empty = detect automatically (~/access-logs, ~/logs).')],
             'log_exclude_ips' => [t('Do not count these IPs in statistics'), t('For example your own address, one per line.')],
             'log_ingest_time_budget' => [t('Time limit for "Update from hosting logs", seconds'), t('The cron command has no limit.')],

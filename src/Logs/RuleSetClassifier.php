@@ -39,4 +39,18 @@ final class RuleSetClassifier implements AttackClassifierInterface
 
         return ['rule' => (string) ($hit['rule'] ?? ''), 'category' => (string) $hit['category']];
     }
+
+    /** Класифікація без відсіювання «бот»-категорій (для розбивки відмов хостингу). */
+    public function classifyAny(string $method, string $uri, string $userAgent): ?array
+    {
+        if ($uri === '' && $method === '') {
+            return null;
+        }
+        $hit = $this->rules->classifyRequest($method === '' ? 'GET' : $method, $uri, $userAgent);
+        if (!is_array($hit) || !isset($hit['category'])) {
+            return null;
+        }
+
+        return ['rule' => (string) ($hit['rule'] ?? ''), 'category' => (string) $hit['category']];
+    }
 }

@@ -8,14 +8,18 @@ use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard
 use PasichDev\SecurityGuard\Contract\LogIngestInterface;
 use Concrete\Package\SecurityGuard\Controller\SinglePage\Dashboard\SecurityGuard\Support\Format;
 use PasichDev\SecurityGuard\Contract\StatsRepositoryInterface;
+use Concrete\Core\Database\Connection\Connection;
 use PasichDev\SecurityGuard\Geo\CountryGuesser;
+use PasichDev\SecurityGuard\Update\BotRangeStore;
+use PasichDev\SecurityGuard\Update\BotRangeUpdater;
+use PasichDev\SecurityGuard\Update\HttpFetcher;
 
 defined('C5_EXECUTE') or die('Access Denied.');
 
 class Traffic extends BaseController
 {
     /** Колонки SecurityGuardDailyStats, для яких малюються графіки по днях. */
-    private const DAY_SERIES = ['totalRequests', 'attackRequests', 'uniqueIps', 'errors404', 'errors5xx', 'overload508', 'botRequests', 'bytes'];
+    private const DAY_SERIES = ['totalRequests', 'attackRequests', 'uniqueIps', 'errors404', 'errors5xx', 'overload508', 'botRequests', 'bytes', 'hostWafBlocked'];
 
     public function view()
     {
@@ -76,9 +80,42 @@ class Traffic extends BaseController
         $this->set('sources', (array) $this->safe(function () {
             return $this->service(LogIngestInterface::class)->discoverSources();
         }, [], t('Hosting log sources')));
+        $this->set('botRanges', $this->botRanges());
+        $this->set('canUpdateRanges', $this->rangeUpdater() !== null);
         $this->set('excludedIps', (string) $this->safe(function () {
             return $this->settings()->get('log_exclude_ips');
         }, '', ''));
+    }
+
+    /** «Оновити діапазони ботів зараз» — лише якщо сервіс оновлення є в пакеті. */
+    public function update_ranges()
+    {
+        if (!$this->isValidPost('sg_update_ranges')) {
+            return $this->back();
+        }
+        $updater = $this->rangeUpdater();
+        if ($updater === null) {
+            $this->flash('error', t('The bot range update service is not available in this version.'));
+
+            return $this->back();
+        }
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(90);
+        }
+        $result = $this->safe(function () use ($updater) {
+            return $updater[0]->{$updater[1]}();
+        }, false, t('Bot range update'));
+        if (is_array($result) && empty($result['updated']) && empty($result['unchanged'])) {
+            $this->describeUpdate($result);
+            $this->flash('error', t('Could not update the bot ranges.'));
+        } elseif ($result === false) {
+            $this->flash('error', t('Could not update the bot ranges.') . ($this->serviceErrors ? ' ' . implode(' ', $this->serviceErrors) : ''));
+        } else {
+            $this->rebuildState();
+            $this->flash('success', t('Bot ranges updated.') . $this->describeUpdate($result));
+        }
+
+        return $this->back($this->postedPeriod());
     }
 
     public function ingest()
@@ -89,5 +126,73 @@ class Traffic extends BaseController
         $this->runIngest();
 
         return $this->back($this->postedPeriod());
+    }
+
+    /**
+     * Стан діапазонів ботів (SecurityGuardBotRanges): [['bot','source','fetchedAt','count'], ...].
+     * null — таблиці чи рядків немає: працюють вбудовані діапазони.
+     */
+    protected function botRanges(): ?array
+    {
+        $meta = $this->safe(function () {
+            if (!class_exists(BotRangeStore::class)) {
+                return [];
+            }
+
+            return (new BotRangeStore($this->app->make(Connection::class)))->meta();
+        }, [], '');
+        if (!$meta) {
+            return null;
+        }
+        $out = [];
+        foreach ($meta as $bot => $m) {
+            $out[] = [
+                'bot' => (string) $bot,
+                'source' => (string) ($m['source'] ?? ''),
+                'fetchedAt' => (int) ($m['fetchedAt'] ?? 0),
+                'count' => (int) ($m['count'] ?? 0),
+            ];
+        }
+
+        return $out;
+    }
+
+    /** Сервіс оновлення (так само, як у команді security-guard:update-ranges) або null. */
+    protected function rangeUpdater(): ?array
+    {
+        if (!class_exists(BotRangeUpdater::class) || !class_exists(HttpFetcher::class) || !class_exists(BotRangeStore::class)) {
+            return null;
+        }
+        $updater = $this->safe(function () {
+            return new BotRangeUpdater(new HttpFetcher($this->app), new BotRangeStore($this->app->make(Connection::class)));
+        }, null, '');
+
+        return $updater ? [$updater, 'update'] : null;
+    }
+
+    /** Підсумок результату BotRangeUpdater::update(): updated / unchanged / errors. */
+    protected function describeUpdate($result): string
+    {
+        if (!is_array($result)) {
+            return '';
+        }
+        $parts = [];
+        foreach ((array) ($result['updated'] ?? []) as $bot => $n) {
+            $parts[] = t('%s: %s ranges updated', (string) $bot, (int) $n);
+        }
+        foreach ((array) ($result['unchanged'] ?? []) as $bot => $n) {
+            $parts[] = t('%s: unchanged', (string) $bot);
+        }
+        $msg = $parts ? ' ' . implode('; ', $parts) . '.' : '';
+        $errors = (array) ($result['errors'] ?? []);
+        if ($errors) {
+            $e = [];
+            foreach ($errors as $bot => $err) {
+                $e[] = $bot . ': ' . mb_substr((string) $err, 0, 120);
+            }
+            $this->flash('error', t('Some sources could not be downloaded:') . ' ' . implode('; ', $e));
+        }
+
+        return $msg;
     }
 }

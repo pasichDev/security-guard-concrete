@@ -97,6 +97,11 @@ final class Settings
         'log_sources' => '',                    // рядки шляхів/глобів; порожнє = автовизначення
         'log_exclude_ips' => '',                // IP адміністраторів, які не рахувати в статистиці
         'log_ingest_time_budget' => 20,         // секунд на один запуск із браузера
+        'host_waf_detect' => true,              // розпізнавати 403 фаєрвола хостингу в логах
+        'host_waf_sizes' => '',                 // розміри відповіді 403 хостингу через кому; порожнє = визначати автоматично
+
+        // Оновлення
+        'bot_ranges_auto_update' => true,       // security-guard:update-ranges тягне офіційні діапазони ботів
     ];
 
     /** Групи для сторінки налаштувань: назва групи => ключі. */
@@ -112,7 +117,8 @@ final class Settings
         'Login' => ['bruteforce_enabled', 'bruteforce_threshold', 'bruteforce_window', 'notify_admin_new_ip'],
         'DDoS' => ['ddos_enabled', 'ddos_multiplier', 'ddos_min_requests', 'ddos_auto_block'],
         'Geo' => ['geo_lookup', 'geo_block_countries'],
-        'Hosting logs' => ['log_root', 'log_sources', 'log_exclude_ips', 'log_ingest_time_budget'],
+        'Hosting logs' => ['log_root', 'log_sources', 'log_exclude_ips', 'log_ingest_time_budget', 'host_waf_detect', 'host_waf_sizes'],
+        'Updates' => ['bot_ranges_auto_update'],
     ];
 
     private $config;

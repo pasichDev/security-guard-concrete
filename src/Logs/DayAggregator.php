@@ -42,6 +42,8 @@ final class DayAggregator
     private $days = [];
     /** @var CrawlerVerifier */
     private $crawlers;
+    /** @var array<int, true> розміри сторінки 403 сервера хостингу */
+    private $hostWafSizes = [];
 
     /** @param string[]|null $onlyDays */
     public function __construct(DateTimeZone $tz, AttackClassifierInterface $classifier, ?IpMatcher $exclude = null, ?array $onlyDays = null, ?CrawlerVerifier $crawlers = null)
@@ -52,6 +54,15 @@ final class DayAggregator
         $this->report = new ReportClassifier();
         $this->exclude = $exclude ?? new IpMatcher('');
         $this->onlyDays = $onlyDays === null ? null : array_fill_keys($onlyDays, true);
+    }
+
+    /** Розміри відповіді, за якими 403 вважається відмовою сервера хостингу (HostWafDetector). */
+    public function setHostWafSizes(array $sizes): void
+    {
+        $this->hostWafSizes = [];
+        foreach ($sizes as $s) {
+            $this->hostWafSizes[(int) $s] = true;
+        }
     }
 
     /** День і година (у часовому поясі сайту) для unix-часу. */
@@ -161,6 +172,26 @@ final class DayAggregator
         }
 
         $hit = $this->classifier->classify($method, $uri, $ua);
+        if ($status === 403 && isset($this->hostWafSizes[$r['bytes']])) {
+            // Відмова сервера хостингу до PHP: пакет цього запиту не бачив.
+            $hw = $hit;
+            if ($hw === null && $this->classifier instanceof RuleSetClassifier) {
+                $hw = $this->classifier->classifyAny($method, $uri, $ua);
+            }
+            $c = $hw['category'] ?? 'unclassified';
+            $rule = $hw['rule'] ?? 'NONE';
+            ++$d['hwTotal'];
+            $d['hwIps'][$ip] = ($d['hwIps'][$ip] ?? 0) + 1;
+            $d['hwCategories'][$c] = ($d['hwCategories'][$c] ?? 0) + 1;
+            $d['hwRules'][$rule] = ($d['hwRules'][$rule] ?? 0) + 1;
+            if ($uri !== '') {
+                $show = LogParser::displayUri($uri);
+                $d['hwUrls'][$show] = ($d['hwUrls'][$show] ?? 0) + 1;
+                if (count($d['hwUrls']) > self::URL_MAP_MAX) {
+                    $d['hwUrls'] = self::prune($d['hwUrls']);
+                }
+            }
+        }
         if ($hit !== null && $verifiedBot !== null) {
             // Краулер ходить старими (Joomla) адресами, які схожі на проби, — рахуємо окремо.
             ++$d['botAttackLike'];
@@ -221,6 +252,7 @@ final class DayAggregator
             'hours' => array_fill(0, 24, 0), 'hoursAttacks' => array_fill(0, 24, 0), 'statuses' => [],
             'excluded' => 0, 'partial' => 0, 'ipBot' => [], 'verifiedBotRequests' => 0, 'botAttackLike' => 0,
             'rAttacks' => 0, 'rAttackIps' => [], 'rCategories' => [], 'rLoginFailed' => 0,
+            'hwTotal' => 0, 'hwIps' => [], 'hwCategories' => [], 'hwRules' => [], 'hwUrls' => [],
         ];
     }
 
@@ -271,6 +303,20 @@ final class DayAggregator
         arsort($bots);
         $rCats = $d['rCategories'];
         arsort($rCats);
+        $hwIps = $d['hwIps'];
+        arsort($hwIps);
+        $hwTop = [];
+        foreach (array_slice($hwIps, 0, self::TOP_N, true) as $ip => $n) {
+            $hwTop[] = ['ip' => (string) $ip, 'count' => $n, 'bot' => $d['ipBot'][$ip] ?? null];
+        }
+        $hwList = array_map('strval', array_keys($hwIps));
+        $hwTruncated = count($hwList) > self::ATTACK_IP_LIST_MAX;
+        $hwList = array_slice($hwList, 0, self::ATTACK_IP_LIST_MAX);
+        sort($hwList);
+        $hwCats = $d['hwCategories'];
+        arsort($hwCats);
+        $hwRules = $d['hwRules'];
+        arsort($hwRules);
 
         $breakdown = [
             'categories' => $categories,
@@ -292,6 +338,14 @@ final class DayAggregator
             'attackIpSketch' => $attackSketch->serialize(),
             'excluded' => $d['excluded'],
             'partialLines' => $d['partial'],
+            'hostWaf' => [
+                'categories' => $hwCats,
+                'topRules' => array_slice($hwRules, 0, self::TOP_N, true),
+                'topIps' => $hwTop,
+                'topUrls' => self::topList($d['hwUrls'], 'url'),
+                'ipList' => $hwList,
+                'ipListTruncated' => $hwTruncated,
+            ],
             'report' => [
                 'attackRequests' => $d['rAttacks'],
                 'attackIps' => count($d['rAttackIps']),
@@ -315,6 +369,8 @@ final class DayAggregator
             'errors5xx' => $d['errors5xx'],
             'bytes' => $d['bytes'],
             'botRequests' => $d['botRequests'],
+            'hostWafBlocked' => $d['hwTotal'],
+            'hostWafIps' => count($d['hwIps']),
             'breakdown' => $breakdown,
         ];
     }
@@ -330,14 +386,19 @@ final class DayAggregator
                 foreach (['topUrls', 'top404', 'topIps', 'topAttackIps'] as $k) {
                     $b[$k] = array_slice($b[$k], 0, $n);
                 }
+                $b['hostWaf']['topUrls'] = array_slice($b['hostWaf']['topUrls'], 0, $n);
+                $b['hostWaf']['topIps'] = array_slice($b['hostWaf']['topIps'], 0, $n);
             } elseif ($i === count($limits)) {
                 $b['attackIpList'] = array_slice($b['attackIpList'], 0, 200);
                 $b['attackIpListTruncated'] = true;
                 $b['report']['attackIpList'] = array_slice($b['report']['attackIpList'], 0, 200);
                 $b['report']['attackIpListTruncated'] = true;
+                $b['hostWaf']['ipList'] = array_slice($b['hostWaf']['ipList'], 0, 200);
+                $b['hostWaf']['ipListTruncated'] = true;
             } else {
                 $b['attackIpList'] = [];
                 $b['report']['attackIpList'] = [];
+                $b['hostWaf']['ipList'] = [];
             }
             ++$i;
         }

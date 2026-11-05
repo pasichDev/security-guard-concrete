@@ -14,7 +14,7 @@ defined('C5_EXECUTE') or die('Access Denied.');
 final class Controller extends Package
 {
     protected $pkgHandle = 'security_guard';
-    protected $pkgVersion = '1.0.0';
+    protected $pkgVersion = '1.1.0';
     protected $appVersionRequired = '9.5.2';
     protected $pkgAutoloaderRegistries = [
         'src' => 'PasichDev\\SecurityGuard',

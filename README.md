@@ -40,7 +40,14 @@ site down — any internal error lets the request through.
 - 📈 **Hosting-log analytics** — reads cPanel `access-logs/` and the monthly `.gz`
   archives (Apache combined format), aggregates per day idempotently (re-runs and log
   rotation never double-count), sees even the static files nginx serves without PHP.
-- 🌗 Dark and light dashboard themes, mobile layout, 🇬🇧 English and 🇺🇦 Ukrainian.
+- 🧰 **Server-side blocks in view** — 403 responses the server returns before PHP (hosting
+  firewall such as ModSecurity/Imunify and `.htaccess` rules) are recognised in the access
+  logs by their fixed block page and shown as a separate source.
+- 🔄 **Bot range updates** — `security-guard:update-ranges` refreshes the official IP lists
+  of Googlebot, Bingbot, Applebot and DuckDuckBot (strict validation, built-in fallback).
+- 🌗 Dark and light dashboard themes, mobile layout.
+- 🌍 Languages: English, Ukrainian, Polish, German, French, Spanish, Italian, Dutch,
+  Portuguese (Brazil).
 
 ## Safety by design
 
@@ -63,6 +70,21 @@ Details: [docs/security-model.md](docs/security-model.md).
 
 ## Installation
 
+**One step on a cPanel/SSH server** (fetches the public repository, swaps the package files,
+runs install or update, clears the cache, checks the home page and rolls the files back if it
+fails):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pasichDev/security-guard-concrete/main/bin/server-update.sh -o ~/sg-update.sh
+bash ~/sg-update.sh            # latest main
+bash ~/sg-update.sh v1.1.0     # a tag or commit
+```
+
+Variables: `SITE_ROOT` (default `~/public_html`), `PHP`, `SITE_URL`. Back up the database
+before updating — schema changes are not rolled back.
+
+**Manually:**
+
 1. Copy the package to `packages/security_guard` in your Concrete installation (the
    directory name must be `security_guard`). Don't copy `tests/` and `docs/` to a public
    web root.
@@ -83,6 +105,7 @@ Details: [docs/security-model.md](docs/security-model.md).
 ```cron
 15 * * * *  php /path/to/site/concrete/bin/concrete5 security-guard:ingest  >/dev/null 2>&1
 30 3 * * *  php /path/to/site/concrete/bin/concrete5 security-guard:cleanup >/dev/null 2>&1
+30 4 * * 1  php /path/to/site/concrete/bin/concrete5 security-guard:update-ranges >/dev/null 2>&1
 ```
 
 On cPanel with CloudLinux use the full PHP path, e.g. `/opt/alt/php82/usr/bin/php`.
@@ -94,6 +117,7 @@ On cPanel with CloudLinux use the full PHP path, e.g. `/opt/alt/php82/usr/bin/ph
 | `security-guard:ingest [--rebuild] [--days=N] [--time-budget=S] [--log-root=DIR] [--domain=D] [--exclude-ip=IP]` | Reads new lines of the hosting access logs and recomputes the affected days. Exit code 0 = done, 1 = errors, 2 = stopped by the time budget (run again to continue). |
 | `security-guard:cleanup` | Deletes old events, expired bans, stale scores and expired counter files. |
 | `security-guard:stats [--from=YYYY-MM-DD] [--to=YYYY-MM-DD] [--report-compat] [--json]` | Prints the daily statistics table. |
+| `security-guard:update-ranges [--force] [--dry-run]` | Downloads the official crawler IP lists and stores them if they pass validation. |
 
 Each command also answers to the `c5:security-guard:*` alias.
 
@@ -103,6 +127,12 @@ By default the package looks for `<home>/access-logs/<domain>` and
 `<home>/access-logs/<domain>-ssl_log` plus the monthly archives in `<home>/logs/`, where
 `<home>` is derived from the site directory and `<domain>` from the canonical URL. Set
 **Settings → Hosting logs** (`log_root`, `log_sources`) if your host uses other paths.
+
+## Adding a language
+
+Add the locale and its plural rule to `SG_LOCALES` in `tests/ui/strings_lib.php`, run
+`php tests/ui/sync_po.php xx_XX` to create `languages/xx_XX/LC_MESSAGES/messages.po` with every
+string, translate it, and run the command again — it checks placeholders and compiles the `.mo`.
 
 ## Uninstalling
 

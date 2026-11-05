@@ -13,6 +13,7 @@ use PasichDev\SecurityGuard\Config\Settings;
 use PasichDev\SecurityGuard\Contract\LogIngestInterface;
 use PasichDev\SecurityGuard\Rules\RuleSet;
 use PasichDev\SecurityGuard\Stats\StatsRepository;
+use PasichDev\SecurityGuard\Update\BotRangeStore;
 use Throwable;
 
 /**
@@ -59,6 +60,7 @@ final class LogIngest implements LogIngestInterface
                 @set_time_limit(max(60, (int) ($options['timeBudget'] ?? 0) * 3));
             }
             $db = $this->app->make(Connection::class);
+            $pendingStore = $this->pendingStore();
             $engine = new IngestEngine(
                 $this->timezone(),
                 static function () use ($settings): AttackClassifierInterface {
@@ -66,15 +68,18 @@ final class LogIngest implements LogIngestInterface
                 },
                 new IpMatcher(trim((string) $settings['log_exclude_ips'] . "\n" . (string) ($options['excludeIps'] ?? ''))),
                 new DbCursorStore($db),
-                $this->pendingStore(),
+                $pendingStore,
                 new StatsRepository($db),
-                new CrawlerVerifier($this->verifiedBotIps($db))
+                new CrawlerVerifier($this->verifiedBotIps($db), (new BotRangeStore($db))->rangesByBot()),
+                $pendingStore instanceof HostWafStateStoreInterface ? $pendingStore : null
             );
 
             return $engine->run($sources, [
                 'timeBudget' => (int) ($options['timeBudget'] ?? 0),
                 'days' => (int) ($options['days'] ?? 0),
                 'rebuild' => !empty($options['rebuild']),
+                'hostWafDetect' => !empty($settings['host_waf_detect']),
+                'hostWafSizes' => (string) ($settings['host_waf_sizes'] ?? ''),
             ]);
         } catch (Throwable $e) {
             $this->logError($e);
@@ -114,6 +119,9 @@ final class LogIngest implements LogIngestInterface
             $domain = $this->siteDomain();
         }
         $home = (string) ($options['logRoot'] ?? '');
+        if ($home === '') {
+            $home = (string) ($settings['log_root'] ?? '');
+        }
         if ($home === '') {
             $home = (string) SourceLocator::detectHome(defined('DIR_BASE') ? DIR_BASE : null, $domain);
         }

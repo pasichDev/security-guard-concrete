@@ -8,12 +8,14 @@ namespace PasichDev\SecurityGuard\Logs;
 use Concrete\Core\Package\PackageService;
 
 /**
- * Черга днів до перерахунку — у БД-конфігу пакета (ключ log_ingest.pending_days),
- * поза групою settings: це службовий стан, а не налаштування.
+ * Службовий стан імпорту в БД-конфігу пакета, поза групою settings:
+ * черга днів до перерахунку (log_ingest.pending_days) і ознаки сторінки 403
+ * хостингу (log_ingest.host_waf).
  */
-final class ConfigPendingDaysStore implements PendingDaysStoreInterface
+final class ConfigPendingDaysStore implements PendingDaysStoreInterface, HostWafStateStoreInterface
 {
     public const KEY = 'log_ingest.pending_days';
+    public const HOST_WAF_KEY = 'log_ingest.host_waf';
 
     private $config;
 
@@ -41,5 +43,20 @@ final class ConfigPendingDaysStore implements PendingDaysStoreInterface
             return;
         }
         $this->config->save(self::KEY, $days);
+    }
+
+    /** Стан детектора 403 хостингу (інтерфейс HostWafStateStoreInterface). */
+    public function getHostWafState(): array
+    {
+        $v = $this->config->get(self::HOST_WAF_KEY);
+
+        return is_array($v) ? $v : [];
+    }
+
+    public function setHostWafState(array $state): void
+    {
+        if ($state !== $this->getHostWafState()) {
+            $this->config->save(self::HOST_WAF_KEY, $state);
+        }
     }
 }

@@ -22,7 +22,7 @@ class Honeypot extends BaseController
         $traps = (array) $this->safe(function () use ($repo) {
             return $repo->trapUrls();
         }, [], '');
-        $custom = preg_split('/\R/', (string) $this->safe(function () {
+        $custom = preg_split('/\r\n|\r|\n/', (string) $this->safe(function () {
             return $this->settings()->get('honeypot_custom_urls');
         }, '', '')) ?: [];
         $custom = array_values(array_filter(array_map('trim', $custom), 'strlen'));

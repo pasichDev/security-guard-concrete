@@ -86,10 +86,11 @@ $pages = [
         'period' => $period,
         'settings' => $settings,
         'modules' => $modulesFn($settings),
-        'tiles' => ['today' => 37, 'd7' => 1450, 'd30' => 19387, 'ips30' => 728, 'activeBans' => 12, 'loginFailed' => 62, 'bruteforce' => 3, 'overload' => 47],
+        'hasHostWaf' => true,
+        'tiles' => ['hostWaf' => 5400, 'hostWafIps' => 321, 'today' => 37, 'd7' => 1450, 'd30' => 19387, 'ips30' => 728, 'activeBans' => 12, 'loginFailed' => 62, 'bruteforce' => 3, 'overload' => 47],
         'summary' => ['byCategory' => ['wordpress' => 15967, 'secrets' => 3301, 'joomla' => 2858, 'shells' => 1030, 'injection' => 28, 'ddos' => 2]],
         'statSum' => [],
-        'series' => ['waf' => $series(1, 900), 'logAttacks' => $series(2, 1200), 'total' => $series(3, 8000), 'overload' => $series(4, 0)],
+        'series' => ['wafVsHost' => array_map(static function ($p) { return ['label' => $p['label'], 'title' => $p['title'], 'values' => [$p['value'], (int) ($p['value'] * 0.6)]]; }, $series(1, 900)), 'waf' => $series(1, 900), 'logAttacks' => $series(2, 1200), 'total' => $series(3, 8000), 'overload' => $series(4, 0)],
         'hasStats' => true,
         'topIps' => [
             ['ip' => '203.0.113.5', 'waf' => 2854, 'logs' => 3000, 'country' => 'CN', 'banned' => true],
@@ -97,7 +98,7 @@ $pages = [
             ['ip' => '2001:db8::1', 'waf' => 0, 'logs' => 99, 'country' => '', 'banned' => false],
             ['ip' => '66.249.70.37', 'waf' => 0, 'logs' => 2839, 'country' => 'US', 'banned' => false, 'bot' => 'Googlebot<script>'],
         ],
-        'categorySources' => ['waf' => [], 'logs' => ['wordpress' => 15967, 'secrets' => 3301, '<b>x</b>' => 3]],
+        'categorySources' => ['waf' => [], 'hostWaf' => ['wordpress' => 500], 'logs' => ['wordpress' => 15967, 'secrets' => 3301, '<b>x</b>' => 3]],
         'countrySources' => ['waf' => ['CN' => 5000, 'US' => 2400, '<x>' => 1], 'logs' => ['NL' => 800]],
         'recentEvents' => $events,
         'alerts' => ['rows' => [['id' => 1, 'type' => 'ddos', 'severity' => 'critical', 'message' => 'Spike <b>5x</b> ' . $evil, 'ip' => '203.0.113.5', 'isRead' => 0, 'createdAt' => $now - 60]], 'total' => 1],
@@ -144,10 +145,10 @@ $pages = [
     ],
     'traffic' => [
         'period' => $period, 'hasData' => true,
-        'sum' => ['totalRequests' => 193333, 'uniqueIps' => 4000, 'attackRequests' => 19387, 'attackIps' => 728, 'blocked403' => 5000, 'loginFailed' => 44, 'errors404' => 3000, 'errors5xx' => 12, 'overload508' => 273, 'botRequests' => 50000, 'bytes' => 9876543210],
+        'sum' => ['hostWafBlocked' => 5400, 'hostWafIps' => 321, 'totalRequests' => 193333, 'uniqueIps' => 4000, 'attackRequests' => 19387, 'attackIps' => 728, 'blocked403' => 5000, 'loginFailed' => 44, 'errors404' => 3000, 'errors5xx' => 12, 'overload508' => 273, 'botRequests' => 50000, 'bytes' => 9876543210],
         'series' => [
             'totalRequests' => $series(1, 8000), 'attackRequests' => $series(2, 1000), 'uniqueIps' => $series(3, 60), 'errors404' => $series(4, 300),
-            'errors5xx' => $series(5, 0), 'overload508' => $series(6, 40), 'botRequests' => $series(7, 2000), 'bytes' => $series(8, 300000000),
+            'errors5xx' => $series(5, 0), 'overload508' => $series(6, 40), 'botRequests' => $series(7, 2000), 'bytes' => $series(8, 300000000), 'hostWafBlocked' => $series(9, 200),
         ],
         'hours' => array_map(static function ($h) {
             return ['label' => sprintf('%02d', $h), 'title' => $h . ':00', 'value' => 100 + $h * 10];
@@ -159,8 +160,11 @@ $pages = [
             'top404' => [[$evil, 7]],
             'topIps' => [['ip' => '203.0.113.5', 'count' => 1500, 'bot' => null], ['ip' => '66.249.70.37', 'count' => 900, 'bot' => 'Googlebot'], ['ip' => '1.1.1.1', 'count' => 5]],
             'countries' => ['US' => 100],
+            'hostWaf' => ['categories' => ['wordpress' => 900], 'topRules' => [['rule' => '<script>949110', 'count' => 50]], 'topIps' => [['ip' => '203.0.113.1', 'count' => 40]]],
         ],
         'lastIngestAt' => $now - 3600,
+        'botRanges' => [['bot' => 'Googlebot', 'source' => 'https://developers.google.com/static/search/apis/ipranges/googlebot.json', 'fetchedAt' => $now - 7200, 'count' => 120]],
+        'canUpdateRanges' => true,
         'sources' => ['/home/u/access-logs/example.com-ssl_log' => 123456, '/home/u/logs/<x>.gz' => 5],
         'excludedIps' => "198.51.100.23\n10.0.0.1",
     ],

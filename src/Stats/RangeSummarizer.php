@@ -20,7 +20,7 @@ final class RangeSummarizer
 {
     public const COLUMNS = [
         'totalRequests', 'uniqueIps', 'attackRequests', 'attackIps', 'blocked403', 'loginFailed',
-        'overload508', 'errors404', 'errors5xx', 'bytes', 'botRequests',
+        'overload508', 'errors404', 'errors5xx', 'bytes', 'botRequests', 'hostWafBlocked', 'hostWafIps',
     ];
     private const TOP_N = 20;
 
@@ -42,6 +42,9 @@ final class RangeSummarizer
         $topIps = $topAttackIps = $topUrls = $top404 = [];
         $report = ['attackRequests' => 0, 'loginFailed' => 0];
         $verifiedBotRequests = 0;
+        $hwSet = [];
+        $hwExact = true;
+        $hwCats = $hwRules = $hwTopIps = $hwTopUrls = [];
         $botAttackLike = 0;
         $byDay = [];
         $lastUpdate = 0;
@@ -71,6 +74,17 @@ final class RangeSummarizer
                 $attackExact = false;
             }
             $verifiedBotRequests += (int) ($b['verifiedBotRequests'] ?? 0);
+            $hw = is_array($b['hostWaf'] ?? null) ? $b['hostWaf'] : [];
+            foreach ((array) ($hw['ipList'] ?? []) as $ip) {
+                $hwSet[(string) $ip] = true;
+            }
+            if (!empty($hw['ipListTruncated'])) {
+                $hwExact = false;
+            }
+            self::addMap($hwCats, $hw['categories'] ?? []);
+            self::addMap($hwRules, $hw['topRules'] ?? []);
+            self::addTop($hwTopIps, $hw['topIps'] ?? [], 'ip');
+            self::addTop($hwTopUrls, $hw['topUrls'] ?? [], 'url');
             $botAttackLike += (int) ($b['botAttackLike'] ?? 0);
             self::addMap($cats, $b['categories'] ?? []);
             self::addMap($rules, $b['rules'] ?? []);
@@ -107,6 +121,7 @@ final class RangeSummarizer
         if ($days > 1) {
             $sum['uniqueIps'] = $ipSketch->count();
             $sum['attackIps'] = $attackExact ? count($attackSet) : max(count($attackSet), $attackSketch->count());
+            $sum['hostWafIps'] = count($hwSet);
         }
         $report['attackIps'] = $days === 1 && isset($rows[0]['breakdown']['report']['attackIps'])
             ? (int) $rows[0]['breakdown']['report']['attackIps']
@@ -120,6 +135,7 @@ final class RangeSummarizer
             'days' => $days,
             'uniqueIpsApprox' => $days > 1,
             'attackIpsApprox' => $days > 1 && !$attackExact,
+            'hostWafIpsApprox' => $days > 1 && !$hwExact,
             'updatedAt' => $lastUpdate,
             'byDay' => $byDay,
             'breakdown' => [
@@ -136,6 +152,12 @@ final class RangeSummarizer
                 'topUrls' => self::finishTop($topUrls, 'url'),
                 'top404' => self::finishTop($top404, 'url'),
                 'countries' => [],
+                'hostWaf' => [
+                    'categories' => self::sortDesc($hwCats),
+                    'topRules' => array_slice(self::sortDesc($hwRules), 0, self::TOP_N, true),
+                    'topIps' => self::finishTop($hwTopIps, 'ip'),
+                    'topUrls' => self::finishTop($hwTopUrls, 'url'),
+                ],
                 'report' => $report,
             ],
         ];
