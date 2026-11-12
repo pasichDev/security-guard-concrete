@@ -149,6 +149,10 @@ EXPECTED_SHA=<sha коміту> bash ~/sg-update.sh v1.2.1  # відмовити
 - Сторінки з повного кешу сторінок Concrete віддає анонімам ще до запуску пакетів, тож ці
   запити фаєрвол не бачить.
 
+## Повідомлення про вразливості
+
+Якщо знайшли вразливість, **повідомте приватно** й не публікуйте деталі в issue. Дивіться [SECURITY.md](SECURITY.md).
+
 ## Автор
 
 Andrii Pasichnyk — [apasichnik9@gmail.com](mailto:apasichnik9@gmail.com).

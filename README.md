@@ -151,6 +151,10 @@ dashboard pages, database tables, settings and state files.
 - Full-page-cached anonymous pages are served by Concrete before packages start, so the
   firewall doesn't see those requests.
 
+## Security reports
+
+Please **report vulnerabilities privately** rather than posting details in public issues. See [SECURITY.md](SECURITY.md) for the reporting channel and affected scope.
+
 ## Author
 
 Andrii Pasichnyk — [apasichnik9@gmail.com](mailto:apasichnik9@gmail.com).
