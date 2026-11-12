@@ -8,7 +8,7 @@ Security reports are reviewed against the latest maintained release of Security 
 
 ## Reporting a vulnerability
 
-**Preferred:** use GitHub's [Report a vulnerability](https://github.com/pasichDev/security-guard-concrete/security/advisories/new) form in the repository's Security / Advisories section, when private vulnerability reporting is enabled.
+**Preferred:** use GitHub's [Report a vulnerability](https://github.com/pasichDev/security-guard-concrete/security/advisories/new) form in the repository's Security / Advisories section.
 
 **Fallback:** send a brief initial report to [apasichnik9@gmail.com](mailto:apasichnik9@gmail.com). Do not include credentials, tokens, raw private logs or customer data in an unencrypted first message. We can agree on a confidential way to exchange additional evidence if needed.
 
